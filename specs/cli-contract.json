@@ -169,6 +169,76 @@
             ]
           }
         }
+      },
+      "indexes": {
+        "description": "Generate indexes output from an existing Marginalia inventory file.",
+        "arguments": {
+          "inventory_file": {
+            "type": "string",
+            "description": "Path to a Marginalia inventory JSON file.",
+            "required": true
+          }
+        },
+        "options": {
+          "output": {
+            "--indexes": {
+              "type": "string | boolean",
+              "nargs": "?",
+              "description": "Emit indexes output. Optional value specifies output destination.",
+              "allowed_values": [
+                "stdout",
+                "<filename>"
+              ],
+              "default_filename": "indexes.json",
+              "routing_semantics": {
+                "no_value": "Write indexes output to default file.",
+                "value=stdout": "Write indexes output to stdout.",
+                "value=<filename>": "Write indexes output to the specified file."
+              }
+            }
+          },
+          "formatting": {
+            "--pretty": {
+              "type": "boolean",
+              "description": "Pretty-print JSON output."
+            },
+            "--compact": {
+              "type": "boolean",
+              "description": "Minified JSON output.",
+              "default": true
+            }
+          },
+          "misc": {
+            "--version": {
+              "type": "boolean",
+              "description": "Print Marginalia version and exit."
+            },
+            "--help": {
+              "type": "boolean",
+              "description": "Print CLI usage information and exit."
+            }
+          }
+        },
+        "input_expectations": {
+          "inventory_schema": "marginalia.inventory.v0.1",
+          "behavior_on_invalid_inventory": "Error and non-zero exit code."
+        },
+        "output_behavior": {
+          "emits": [
+            "indexes"
+          ],
+          "default_destination": "files"
+        },
+        "invariants": [
+          "Indexes output must be derived solely from the provided inventory.",
+          "No source files are read during this command.",
+          "Indexes output must conform to the indexes output specification."
+        ],
+        "non_goals": [
+          "Rescanning source code",
+          "Modifying inventory contents",
+          "Validating meta semantics beyond structural correctness"
+        ]
       }
     },
     "exit_codes": {
@@ -189,7 +259,10 @@
       "CLI must always emit valid JSON when successful",
       "Indexes must be derivable from inventory output",
       "Unknown meta keys must not cause failure",
-      "Missing meta keys must not cause failure"
+      "Missing meta keys must not cause failure",
+      "Inventory output is the canonical representation of Marginalia analysis.",
+      "Indexes output is always derivable from inventory output.",
+      "Commands operating on inventory files must not depend on source code."
     ]
   }
 }
