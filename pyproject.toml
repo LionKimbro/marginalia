@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marginalia"
+version = "0.1.0"
+description = "Structured marginal metadata for Python source code"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Lion Kimbro" }
+]
+requires-python = ">=3.9"
+
+dependencies = []
+
+[project.scripts]
+marginalia = "marginalia.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
