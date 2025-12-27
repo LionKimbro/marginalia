@@ -1,0 +1,195 @@
+{
+  "marginalia_cli": {
+    "version": "0.1",
+    "command": "marginalia",
+    "purpose": "Static analysis tool for extracting Marginalia meta comments from Python source code and emitting structured JSON representations.",
+    "design_principles": [
+      "Non-invasive",
+      "Composable",
+      "Scriptable",
+      "JSON-first",
+      "No runtime dependency"
+    ],
+    "invocation": {
+      "pattern": "marginalia <command> [options] <path>",
+      "stdout": "JSON output by default",
+      "stderr": "Errors and warnings",
+      "default_exit_code": 0
+    },
+    "commands": {
+      "scan": {
+        "description": "Scan Python source files for Marginalia meta comments and emit structured outputs.",
+        "arguments": {
+          "path": {
+            "type": "string",
+            "description": "File or directory path to scan.",
+            "required": true
+          }
+        },
+        "options": {
+          "output_selection": {
+            "--inventory": {
+              "type": "string | boolean",
+              "nargs": "?",
+              "description": "Emit inventory output. Optional value specifies output destination.",
+              "allowed_values": [
+                "stdout",
+                "<filename>"
+              ],
+              "default_filename": "inventory.json",
+              "routing_semantics": {
+                "no_value": "Write inventory output to default file.",
+                "value=stdout": "Write inventory output to stdout.",
+                "value=<filename>": "Write inventory output to the specified file."
+              }
+            },
+            "--indexes": {
+              "type": "string | boolean",
+              "nargs": "?",
+              "description": "Emit indexes output. Optional value specifies output destination.",
+              "allowed_values": [
+                "stdout",
+                "<filename>"
+              ],
+              "default_filename": "indexes.json",
+              "routing_semantics": {
+                "no_value": "Write indexes output to default file.",
+                "value=stdout": "Write indexes output to stdout.",
+                "value=<filename>": "Write indexes output to the specified file."
+              }
+            }
+          },
+          "formatting": {
+            "--pretty": {
+              "type": "boolean",
+              "description": "Pretty-print JSON output."
+            },
+            "--compact": {
+              "type": "boolean",
+              "description": "Minified JSON output.",
+              "default": true
+            }
+          },
+          "scope_control": {
+            "--files": {
+              "type": "string",
+              "description": "Glob pattern restricting which files are scanned."
+            },
+            "--exclude": {
+              "type": "string",
+              "description": "Glob pattern for excluding files or directories."
+            }
+          },
+          "index_control": {
+            "--indexes-only": {
+              "type": "array<string>",
+              "description": "Restrict emitted indexes to the specified list.",
+              "allowed_values": [
+                "by-symbol",
+                "by-file",
+                "by-module",
+                "by-thread",
+                "by-flag"
+              ]
+            }
+          },
+          "diagnostics": {
+            "--warn": {
+              "type": "boolean",
+              "description": "Emit warnings for malformed or unbound meta comments."
+            },
+            "--strict": {
+              "type": "boolean",
+              "description": "Treat warnings as errors and return non-zero exit code."
+            }
+          },
+          "misc": {
+            "--version": {
+              "type": "boolean",
+              "description": "Print Marginalia CLI version and exit."
+            },
+            "--help": {
+              "type": "boolean",
+              "description": "Print CLI usage information and exit."
+            }
+          }
+        },
+        "output_structure": {
+          "inventory": {
+            "description": "Flat list of all annotated symbols.",
+            "emitted_when": [
+              "--inventory",
+              "--all"
+            ]
+          },
+          "indexes": {
+            "description": "Inverted indexes over the symbol inventory.",
+            "emitted_when": [
+              "--indexes",
+              "--all"
+            ],
+            "indexes": [
+              "by-symbol",
+              "by-file",
+              "by-module",
+              "by-thread",
+              "by-flag"
+            ]
+          }
+        },
+        "output_behavior": {
+          "output_behavior": {
+            "default": {
+              "emits": [
+                "inventory",
+                "indexes"
+              ],
+              "destination": "files"
+            },
+            "selection_rules": [
+              "If neither --inventory nor --indexes is specified, both outputs are emitted.",
+              "If only --inventory is specified, only inventory output is emitted.",
+              "If only --indexes is specified, only indexes output is emitted.",
+              "If both --inventory and --indexes are specified, both outputs are emitted."
+            ],
+            "routing_rules": [
+              "Each emitted output is routed independently.",
+              "If an output option is given a value of 'stdout', that output is written to stdout.",
+              "If an output option is given an explicit filename, that output is written to that file.",
+              "If an output option is given without a value, its default filename is used.",
+              "If an output option is not specified but is emitted by default, its default filename is used."
+            ],
+            "default_filenames": {
+              "inventory": "inventory.json",
+              "indexes": "indexes.json"
+            },
+            "stdout_rules": [
+              "At most one output may be routed to stdout per invocation.",
+              "If multiple outputs are configured for stdout, this is a usage error."
+            ]
+          }
+        }
+      }
+    },
+    "exit_codes": {
+      "0": "Success",
+      "1": "Usage or argument error",
+      "2": "Meta comment parse error",
+      "3": "Strict-mode validation failure",
+      "4": "Filesystem or IO error"
+    },
+    "non_goals": [
+      "Modifying source files",
+      "Enforcing meta semantics",
+      "Requiring complete annotations",
+      "Executing Python code",
+      "Imposing project structure"
+    ],
+    "invariants": [
+      "CLI must always emit valid JSON when successful",
+      "Indexes must be derivable from inventory output",
+      "Unknown meta keys must not cause failure",
+      "Missing meta keys must not cause failure"
+    ]
+  }
+}

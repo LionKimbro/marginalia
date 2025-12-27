@@ -1,0 +1,106 @@
+{
+  "marginalia_outputs": {
+    "version": "0.1",
+    "assumes_meta_spec": "marginalia.meta.v0.1",
+    "common_item_shape": {
+      "symbol": "string",
+      "symbol_type": "function | class",
+      "source_file": "string",
+      "line_number": "integer",
+      "meta": {
+        "modules": "set<string>",
+        "threads": "set<string>",
+        "callers": "string | integer",
+        "flags": "set<character>",
+        "custom": "object<string, any>"
+      }
+    },
+    "outputs": {
+      "inventory": {
+        "name": "inventory_output",
+        "description": "Flat list of all annotated symbols discovered during analysis.",
+        "structure": {
+          "type": "array",
+          "items": {
+            "$ref": "#/marginalia_outputs/common_item_shape"
+          }
+        },
+        "ordering": {
+          "default": "source order",
+          "optional": [
+            "symbol",
+            "source_file"
+          ]
+        },
+        "semantics": "Complete, lossless enumeration of Marginalia-bound symbols."
+      },
+      "indexes": {
+        "name": "indexes_output",
+        "description": "Multiple inverted indexes over the same symbol inventory.",
+        "structure": {
+          "by-symbol": {
+            "<symbol-name>": {
+              "type": "array",
+              "items": {
+                "$ref": "#/marginalia_outputs/common_item_shape"
+              },
+              "ordering": "alphabetical by source_file"
+            }
+          },
+          "by-file": {
+            "<filename>": {
+              "type": "array",
+              "items": {
+                "$ref": "#/marginalia_outputs/common_item_shape"
+              },
+              "ordering": "alphabetical by symbol"
+            }
+          },
+          "by-module": {
+            "<module-name>": {
+              "type": "array",
+              "items": {
+                "$ref": "#/marginalia_outputs/common_item_shape"
+              },
+              "ordering": "alphabetical by symbol"
+            }
+          },
+          "by-thread": {
+            "<thread-name>": {
+              "type": "array",
+              "items": {
+                "$ref": "#/marginalia_outputs/common_item_shape"
+              },
+              "ordering": "alphabetical by symbol"
+            }
+          },
+          "by-flag": {
+            "<flag-character>": {
+              "type": "array",
+              "items": {
+                "$ref": "#/marginalia_outputs/common_item_shape"
+              },
+              "ordering": "alphabetical by symbol"
+            }
+          }
+        },
+        "indexing_rules": {
+          "multi_membership": "A symbol may appear in multiple index buckets.",
+          "missing_keys": "Symbols lacking a key are omitted from that index.",
+          "unknown_meta_keys": "Ignored by indexed output unless explicitly configured."
+        },
+        "semantics": "Perspective-based projections over a shared symbol inventory."
+      }
+    },
+    "invariants": [
+      "All indexed outputs must reference items present in inventory output.",
+      "No indexed output may introduce new symbols.",
+      "Item identity is defined by (symbol, source_file, line_number)."
+    ],
+    "non_goals": [
+      "Deduplication across files",
+      "Semantic validation of meta values",
+      "Conflict resolution between indexes"
+    ]
+  }
+}
