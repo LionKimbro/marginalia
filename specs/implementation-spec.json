@@ -1,0 +1,181 @@
+{
+  "program": {
+    "name": "marginalia",
+    "version": "0.2",
+    "purpose": "Static analysis tool for extracting structured, comment-based metadata from Python source code and projecting it into inventory and index artifacts.",
+    "implementation": "python",
+    "execution_model": "single-process, batch-oriented",
+    "target_platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  "architecture": {
+    "model": "global-state-driven",
+    "design_principle": "single canonical inventory; all other artifacts are pure projections",
+    "error_handling": "fail-fast; invariant violations are programmer errors",
+    "backward_compatibility": false
+  },
+  "global_state": {
+    "db": {
+      "type": "list",
+      "description": "Canonical inventory of all discovered symbols.",
+      "lifecycle": [
+        "initialized empty at program start",
+        "cleared in-place before population",
+        "populated by either source scanning or inventory loading",
+        "read-only for all downstream operations"
+      ],
+      "invariant": "After initialization, db contains only valid inventory records as defined by inventory_schema."
+    },
+    "g": {
+      "type": "dict",
+      "description": "Global control and configuration state.",
+      "written_by": [
+        "argument_parsing"
+      ],
+      "read_by": [
+        "source scanning",
+        "inventory loading",
+        "inventory writing",
+        "index writing"
+      ],
+      "expected_contents": [
+        "command",
+        "paths",
+        "include_globs",
+        "exclude_dirs",
+        "base_path",
+        "inventory_output_path",
+        "indexes_output_path",
+        "formatting_options"
+      ],
+      "invariant": "All required keys are present after argument parsing."
+    }
+  },
+  "data_flow": {
+    "phases": [
+      {
+        "name": "initialization",
+        "description": "Global state containers are created and argparse populates control dictionary g."
+      },
+      {
+        "name": "inventory_population",
+        "description": "Exactly one of the following occurs:",
+        "options": [
+          "scan Python source files and populate db",
+          "load inventory.json and populate db"
+        ],
+        "postcondition": "db is fully populated and valid."
+      },
+      {
+        "name": "projection",
+        "description": "Indexes are derived deterministically from db."
+      },
+      {
+        "name": "emission",
+        "description": "Inventory and/or indexes are written to disk or stdout."
+      }
+    ]
+  },
+  "inventory_schema": {
+    "source": "marginalia_outputs.common_item_shape",
+    "cardinality": "list",
+    "identity_rule": "Defined by outputs spec",
+    "strictness": {
+      "missing_fields": "error",
+      "extra_fields": "error"
+    }
+  },
+  "index_schema": {
+    "type": "object",
+    "description": "Symbol-centric projections over the canonical inventory.",
+    "indexes": {
+      "by-symbol": "object",
+      "by-file": "object",
+      "by-module": "object",
+      "by-thread": "object",
+      "by-flag": "object"
+    },
+    "bucket_shape": {
+      "<bucket-key>": {
+        "<symbol-key>": {
+          "$ref": "marginalia_outputs.common_item_shape"
+        }
+      }
+    },
+    "symbol_key_rules": {
+      "base_key": "symbol",
+      "collision_resolution": {
+        "strategy": "serial suffix",
+        "format": "<symbol> (n)",
+        "scope": "per bucket",
+        "ordering": "source order"
+      }
+    },
+    "omission_rule": "Symbols lacking a key do not appear in that index."
+  },
+  "source_scanning": {
+    "scope": "multiple files and directories",
+    "discovery": {
+      "mechanism": "recursive directory walk",
+      "filters": {
+        "include": [
+          "*.py",
+          "*.pyw"
+        ],
+        "exclude_directories": [
+          ".git",
+          "__pycache__",
+          ".venv",
+          "build",
+          "dist"
+        ]
+      }
+    },
+    "parsing": {
+      "binding_rule": "A meta comment applies to the immediately following bindable symbol; explicit anchors override positional binding.",
+      "targets": [
+        "function",
+        "class",
+        "data",
+        "anchor"
+      ],
+      "anchor_handling": "Meta comments containing @anchor bind to anchor symbols declared by the meta system, independent of Python identifier binding.",
+      "ignored_elements": [
+        "blank lines",
+        "non-meta comments",
+        "decorators"
+      ]
+    }
+  },
+  "inventory_loading": {
+    "input": "inventory.json",
+    "expectation": "Input exactly matches inventory_schema.",
+    "validation": "Structural only; semantic validation is out of scope."
+  },
+  "output": {
+    "inventory": {
+      "format": "json",
+      "content": "Exact serialization of db"
+    },
+    "indexes": {
+      "format": "json",
+      "content": "Projection derived from db"
+    }
+  },
+  "non_goals": [
+    "Runtime behavior modification",
+    "Static type checking",
+    "Call graph inference",
+    "Backward compatibility with earlier formats",
+    "Partial or best-effort parsing"
+  ],
+  "guarantees": [
+    "Inventory fully determines all index outputs",
+    "Indexes introduce no new information",
+    "All outputs are deterministic given the same input",
+    "Global state is explicit and intentional"
+  ]
+}

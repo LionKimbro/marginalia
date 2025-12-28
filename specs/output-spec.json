@@ -1,18 +1,119 @@
 {
   "marginalia_outputs": {
-    "version": "0.1",
+    "version": "0.2",
     "assumes_meta_spec": "marginalia.meta.v0.1",
     "common_item_shape": {
-      "symbol": "string",
-      "symbol_type": "function | class",
-      "source_file": "string",
-      "line_number": "integer",
-      "meta": {
-        "modules": "set<string>",
-        "threads": "set<string>",
-        "callers": "string | integer",
-        "flags": "set<character>",
-        "custom": "object<string, any>"
+      "fields": {
+        "symbol": {
+          "type": "string"
+        },
+        "symbol_type": {
+          "type": "string",
+          "allowed": [
+            "function",
+            "class",
+            "data",
+            "anchor"
+          ],
+          "semantics": {
+            "function": "A Python function definition.",
+            "class": "A Python class definition.",
+            "data": "A Python-level name binding that assigns a value to an identifier.",
+            "anchor": "A meta-declared symbol that may not correspond to a Python identifier binding."
+          }
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "line_number": {
+          "type": "integer"
+        },
+        "raw": {
+          "type": "string",
+          "semantics": "Exact original meta comment line, including leading # and all content (including any @anchor token), with trailing newline removed."
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "unique_items": true,
+          "case_sensitivity": "insensitive",
+          "normalization": "lowercase"
+        },
+        "threads": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "unique_items": true,
+          "case_sensitivity": "insensitive",
+          "normalization": "lowercase"
+        },
+        "callers": {
+          "type": [
+            "array",
+            "string",
+            "integer"
+          ],
+          "mutual_exclusivity": true,
+          "invariant": "Exactly one representation form must be used.",
+          "semantics": {
+            "array": "Explicit list of calling symbols.",
+            "string": "\"*\" indicates general-purpose or unbounded callers.",
+            "integer": "Expected number of distinct call sites."
+          },
+          "allowed_forms": {
+            "array": {
+              "items": {
+                "type": "string",
+                "description": "Name of a calling function or symbol."
+              },
+              "unique_items": true,
+              "meaning": "Explicit list of symbols that are expected to call this symbol."
+            },
+            "string": {
+              "allowed_values": [
+                "*"
+              ],
+              "meaning": "\"*\" indicates general-purpose usage with unbounded or unknown callers."
+            },
+            "integer": {
+              "minimum": 0,
+              "meaning": "Expected number of distinct call sites."
+            }
+          },
+          "null_allowed": false
+        },
+        "flags": {
+          "type": "string",
+          "semantics": "A string interpreted as a set of single-character flags; each character represents one flag.",
+          "constraints": {
+            "unique_characters": true
+          }
+        },
+        "custom": {
+          "type": "object",
+          "value_type": "array<string>",
+          "semantics": "Contains all parsed meta keys not recognized as reserved keys (modules, threads, callers, flags). Each key maps to an array of string values.",
+          "default": {}
+        }
+      },
+      "field_requirements": {
+        "required": [
+          "symbol",
+          "symbol_type",
+          "source_file",
+          "line_number",
+          "raw",
+          "modules",
+          "threads",
+          "callers",
+          "flags",
+          "custom"
+        ],
+        "missing_field_behavior": "error",
+        "null_values": "disallowed"
       }
     },
     "outputs": {
@@ -39,55 +140,54 @@
         "description": "Multiple inverted indexes over the same symbol inventory.",
         "structure": {
           "by-symbol": {
-            "<symbol-name>": {
-              "type": "array",
-              "items": {
-                "$ref": "#/marginalia_outputs/common_item_shape"
-              },
-              "ordering": "alphabetical by source_file"
+            "<symbol-key>": {
+              "$ref": "#/marginalia_outputs/common_item_shape"
             }
           },
           "by-file": {
             "<filename>": {
-              "type": "array",
-              "items": {
+              "<symbol-key>": {
                 "$ref": "#/marginalia_outputs/common_item_shape"
-              },
-              "ordering": "alphabetical by symbol"
+              }
             }
           },
           "by-module": {
             "<module-name>": {
-              "type": "array",
-              "items": {
+              "<symbol-key>": {
                 "$ref": "#/marginalia_outputs/common_item_shape"
-              },
-              "ordering": "alphabetical by symbol"
+              }
             }
           },
           "by-thread": {
             "<thread-name>": {
-              "type": "array",
-              "items": {
+              "<symbol-key>": {
                 "$ref": "#/marginalia_outputs/common_item_shape"
-              },
-              "ordering": "alphabetical by symbol"
+              }
             }
           },
           "by-flag": {
             "<flag-character>": {
-              "type": "array",
-              "items": {
+              "<symbol-key>": {
                 "$ref": "#/marginalia_outputs/common_item_shape"
-              },
-              "ordering": "alphabetical by symbol"
+              }
             }
           }
+        },
+        "symbol_key_rules": {
+          "base_key": "<symbol-name>",
+          "collision_resolution": {
+            "strategy": "serial_suffix",
+            "format": "<symbol-name> (<n>)",
+            "scope": "per index bucket",
+            "ordering": "source order within the bucket"
+          },
+          "identity_note": "Symbol keys are presentation keys only; item identity remains (symbol, source_file, line_number)."
         },
         "indexing_rules": {
           "multi_membership": "A symbol may appear in multiple index buckets.",
           "missing_keys": "Symbols lacking a key are omitted from that index.",
-          "unknown_meta_keys": "Ignored by indexed output unless explicitly configured."
+          "unknown_meta_keys": "Preserved in item.custom but not indexed unless explicitly configured.",
+          "ordering": "undefined (JSON object); consumers may sort by key if desired"
         },
         "semantics": "Perspective-based projections over a shared symbol inventory."
       }

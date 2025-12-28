@@ -3,8 +3,7 @@
     "version": "0.1",
     "purpose": "Provide structured, comment-based metadata for describing the functional organization of Python code without affecting runtime behavior.",
     "scope": "Static source analysis",
-    "binding_rule": "A meta comment applies to the immediately following function or class definition.",
-
+    "binding_rule": "A meta comment applies to the immediately following bindable symbol; if an @anchor is present, the comment binds to that anchor instead.",
     "syntax": {
       "comment_prefix": "# meta:",
       "entry_format": "key=value_list",
@@ -12,9 +11,46 @@
       "value_separator": ",",
       "key_character_set": "a-zA-Z0-9_-",
       "value_character_set": "a-zA-Z0-9_-#*",
+      "anchor_prefix": "@",
+      "anchor_character_set": "a-zA-Z0-9_-",
       "case_sensitive": true
     },
-
+    "examples": [
+      {
+        "description": "Binding metadata to a g-var entry using an explicit anchor",
+        "source": [
+          "g = {",
+          "  # meta: @X modules=coordinates threads=main flags=g",
+          "  \"X\": 0,",
+          "",
+          "  # meta: @Y modules=coordinates threads=main flags=g",
+          "  \"Y\": 0",
+          "}"
+        ],
+        "binding_result": {
+          "X": {
+            "symbol_type": "anchor",
+            "modules": [
+              "coordinates"
+            ],
+            "threads": [
+              "main"
+            ],
+            "flags": "g"
+          },
+          "Y": {
+            "symbol_type": "anchor",
+            "modules": [
+              "coordinates"
+            ],
+            "threads": [
+              "main"
+            ],
+            "flags": "g"
+          }
+        }
+      }
+    ],
     "parsing_rules": {
       "multiple_entries_allowed": true,
       "unknown_keys_allowed": true,
@@ -22,61 +58,77 @@
       "whitespace": "ignored_around_separators",
       "ordering": "insignificant"
     },
-
     "binding": {
       "targets": [
         "function",
-        "class"
+        "class",
+        "data",
+        "anchor"
       ],
-      "scope_limit": "next_definition_only"
+      "scope_limit": "next_bindable_symbol",
+      "anchor_binding": {
+        "requires_explicit_anchor": true,
+        "implicit_binding": false
+      }
     },
-
     "keys": {
       "modules": {
         "type": "set<string>",
         "description": "Logical modules or functional groupings that the symbol participates in.",
         "semantics": "Descriptive; does not imply physical module boundaries.",
-        "examples": ["db", "conversation", "clipboard"]
+        "examples": [
+          "db",
+          "conversation",
+          "clipboard"
+        ]
       },
-
       "threads": {
         "type": "set<string>",
         "description": "Logical execution or call-path contexts in which the symbol is expected to run.",
         "semantics": "Narrative or conceptual threads, not OS-level concurrency primitives.",
-        "examples": ["main", "startup", "ui-loop"]
+        "examples": [
+          "main",
+          "startup",
+          "ui-loop"
+        ]
       },
-
       "callers": {
-        "type": "string | integer",
+        "type": "array<string> | string | integer",
         "description": "Approximate cardinality of call sites for the symbol.",
         "allowed_values": {
           "*": "Unbounded or general-purpose usage",
+          "array": "Explicit list of calling symbols",
           "integer": "Expected number of distinct call sites"
         },
         "semantics": "Informational; may be validated by tooling but never enforced."
       },
-
       "flags": {
         "type": "set<character>",
         "description": "User-defined categorical markers with externally defined meanings.",
         "semantics": "Opaque to Marginalia; interpreted only by consuming tools or users.",
-        "examples": ["D", "#", "X"]
+        "examples": [
+          "D",
+          "#",
+          "X"
+        ]
       }
     },
-
     "extensibility": {
       "custom_keys": true,
-      "reserved_keys": ["modules", "threads", "callers", "flags"],
+      "reserved_keys": [
+        "modules",
+        "threads",
+        "callers",
+        "flags"
+      ],
       "forward_compatibility": "Tools must ignore unknown keys."
     },
-
     "non_goals": [
       "Runtime behavior modification",
       "Static type enforcement",
       "Dependency resolution",
       "Call graph enforcement"
     ],
-
     "output_recommendation": {
       "normalized_representation": {
         "symbol_name": "string",
