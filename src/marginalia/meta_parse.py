@@ -42,6 +42,7 @@ def parse_meta_line(line):
 
     parts = body.split()
     anchor = None
+    item_id = None
     kv = {}
 
     for part in parts:
@@ -50,6 +51,12 @@ def parse_meta_line(line):
             if not am:
                 raise MetaParseError(f"bad anchor token: {part}")
             anchor = am.group(1)
+            continue
+
+        if part.startswith("#"):
+            if not part[1:]:
+                raise MetaParseError("empty id token")
+            item_id = part
             continue
 
         if "=" not in part:
@@ -71,10 +78,11 @@ def parse_meta_line(line):
 
         kv[k] = vals  # last wins
 
-    return {"anchor": anchor, "kv": kv}
+    return {"anchor": anchor, "item_id": item_id, "kv": kv}
 
 # meta: modules=scan callers=scan.scan_file
 def find_bindable(line):
+    """Identifying a (symbol, "function/class/data"), in a subsequent line."""
     # returns (symbol, symbol_type) or (None, None)
     m = DEF_RE.match(line)
     if m:

@@ -2,9 +2,54 @@
 from .errors import MetaParseError
 
 
+def make_faux_id():
+    """
+    TEMPORARY HACK — INTENTIONALLY SELF-CONTAINED.
+
+    Generates a short placeholder ID of the form:
+    
+        #A9fQ
+
+    This function exists only to unblock code paths while the proper,
+    deterministic ID assignment logic is still being designed.
+
+    Current reality:
+    - Explicitly provided IDs *are* parsed and respected correctly.
+    - In practice, most items do NOT provide an explicit ID.
+    - There is not yet a single, agreed-upon place in the pipeline where
+      default IDs should be assigned.
+    - As a result, downstream code currently requires a stand-in ID.
+    
+    Intended default ID semantics (not yet implemented):
+    - Default ID should be derived as: "filename.symbol"
+    - This ID should be stable, deterministic, and system-wide unique.
+    - The derivation should occur once, in a well-defined stage.
+    
+    Work remaining before this function can be deleted:
+    1. Decide the correct pipeline stage to assign default IDs
+       (likely in or just after scan_file).
+    2. Implement deterministic default ID derivation:
+           id = f"{filename}.{symbol}"
+    3. Route the resolved ID cleanly to this module (make_item).
+    4. Delete this function and its call sites.
+
+    Properties of this hack:
+    - IDs are non-deterministic and not collision-safe.
+    - Imports are intentionally local so removal leaves no residue.
+    
+    Deletion condition:
+    - scan_file (or an earlier stage) guarantees a stable default ID.
+    """
+    import random
+    import string
+    chars = string.digits + string.ascii_letters  # 0-9A-Za-z
+    return "#" + "".join(random.choice(chars) for _ in range(4))
+
+
 # meta: modules=db callers=scan.scan_file
-def make_item(symbol, symbol_type, source_file, line_number, raw, meta_kv):
+def make_item(item_id, symbol, symbol_type, source_file, line_number, raw, meta_kv):
     # Reserved keys:
+    # - item_id: string "#...."
     # - modules, threads: arrays, normalized lowercase, unique
     # - callers: array | "*" | integer
     # - flags: string set-of-chars unique
@@ -29,6 +74,7 @@ def make_item(symbol, symbol_type, source_file, line_number, raw, meta_kv):
             custom[k] = list(vals)
 
     item = {
+        "id": make_faux_id(),  # HACK: make_faux_id() is a hack; replace with item_id later
         "symbol": symbol,
         "symbol_type": symbol_type,
         "source_file": source_file,
@@ -95,7 +141,7 @@ def _is_int(s):
 
 # meta: modules=db callers=indexes_command._run_indexes_command
 def validate_inventory_item_strict(item):
-    required = ["symbol", "symbol_type", "source_file", "line_number", "raw", "modules", "threads", "callers", "flags", "custom"]
+    required = ["item_id", "symbol", "symbol_type", "source_file", "line_number", "raw", "modules", "threads", "callers", "flags", "custom"]
     for k in required:
         if k not in item:
             raise MetaParseError(f"inventory missing field: {k}")
@@ -104,6 +150,8 @@ def validate_inventory_item_strict(item):
     if extra:
         raise MetaParseError(f"inventory extra fields: {extra}")
 
+    if not isinstance(item["item_id"], string) and item["item_id"][0] != "#":
+        raise MetaParseError("item_id must be string (starting with '#')")
     if item["symbol_type"] not in ("function", "class", "data", "anchor"):
         raise MetaParseError(f"bad symbol_type: {item['symbol_type']}")
 

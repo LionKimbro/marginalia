@@ -30,6 +30,7 @@ def scan_file(p, source_file_display):
             if parsed["anchor"]:
                 # binds immediately to anchor
                 item = make_item(
+                    None,  # TODO: replace with the item_id
                     parsed["anchor"],
                     "anchor",
                     source_file_display,
@@ -53,6 +54,7 @@ def scan_file(p, source_file_display):
             sym, stype = find_bindable(line)
             if sym:
                 item = make_item(
+                    None,  # TODO: replace with the item_id
                     sym,
                     stype,
                     source_file_display,
