@@ -1,0 +1,12 @@
+{
+  "idea_log": {
+    "purpose": "Collect architectural and design ideas.",
+    "notes": [
+      {
+        "title": "Function Families for Metadata Read/Write Attribution",
+        "date": "2025-12-30",
+        "writeup": "It should be possible to tag functions into families, allowing metadata annotations like: 'written by (family X), read by (specific function Y)'. This would permit flexible grouping of related procedures (e.g. scan pipeline descendants) without prematurely enumerating all participants."
+      }
+    ]
+  }
+}
