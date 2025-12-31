@@ -9,9 +9,9 @@ from .state import db, g
 
 
 # meta: modules=cli callers=cli.main
-def run_indexes_command(args):
+def run_indexes_command():
     try:
-        return _run_indexes_command(args)
+        return _run_indexes_command()
     except UsageError as e:
         stderr(f"marginalia: usage error: {e}")
         return 1
@@ -28,7 +28,8 @@ def run_indexes_command(args):
         stderr(f"marginalia: error: {e}")
         return 4
 
-def _run_indexes_command(args):
+def _run_indexes_command():
+    args = g["args"]
     if args.pretty and args.compact:
         raise UsageError("cannot combine --pretty and --compact")
 
@@ -41,7 +42,6 @@ def _run_indexes_command(args):
         raise MetaParseError("inventory must be a JSON array")
 
     # initialize globals
-    g.clear()
     g["command"] = "indexes"
     g["paths"] = [inv_path]
     g["formatting_options"] = {"pretty": bool(args.pretty), "compact": bool(args.compact)}

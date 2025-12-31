@@ -1,56 +1,47 @@
 # marginalia/discovery.py
 import fnmatch
-import os
-
-from .paths import join
-
+from pathlib import Path
+from .state import g
 
 # meta: modules=scan
 DEFAULT_INCLUDE = ["*.py", "*.pyw"]
+
 # meta: modules=scan
 DEFAULT_EXCLUDE_DIRS = {".git", "__pycache__", ".venv", "build", "dist"}
 
-# meta: modules=scan callers=scan_command._run_scan_command
-def iter_source_files(root_path, files_glob=None, exclude_glob=None, exclude_dirs=None):
-    if exclude_dirs is None:
-        exclude_dirs = set(DEFAULT_EXCLUDE_DIRS)
 
-    if os.path.isfile(root_path):
-        if _match_file(root_path, files_glob, exclude_glob):
-            yield os.path.abspath(root_path)
-        return
-
-    if not os.path.isdir(root_path):
-        return
-
-    for dirpath, dirnames, filenames in os.walk(root_path):
-        # prune dirs in-place
-        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
-        for name in filenames:
-            p = join(dirpath, name)
-            if _match_file(p, files_glob, exclude_glob):
-                yield os.path.abspath(p)
-
-
-def _match_file(p, files_glob, exclude_glob):
-    name = os.path.basename(p)
-
-    # include filter
-    if files_glob:
-        if not fnmatch.fnmatch(name, files_glob):
-            return False
+# meta: modules=scan callers=cli.main
+def establish_include_and_exclude():
+    args = g["args"]
+    
+    # include globs: override or default
+    if args.files:
+        g["include_globs"] = {args.files}
     else:
-        ok = False
-        for pat in DEFAULT_INCLUDE:
-            if fnmatch.fnmatch(name, pat):
-                ok = True
-                break
-        if not ok:
-            return False
+        g["include_globs"] = set(DEFAULT_INCLUDE)
 
-    # exclude filter may apply to full path or name
-    if exclude_glob:
-        if fnmatch.fnmatch(name, exclude_glob) or fnmatch.fnmatch(p, exclude_glob):
-            return False
+    # exclude dirs: override or default
+    if getattr(args, "exclude_dirs", None):
+        g["exclude_dirs"] = set(args.exclude_dirs)
+    else:
+        g["exclude_dirs"] = set(DEFAULT_EXCLUDE_DIRS)
 
-    return True
+
+# meta: modules=scan callers=scan_command._run_scan_command
+def iter_source_files():
+    root = Path(g["args"].path)
+    yield from _iter_source_files(root)
+
+def _iter_source_files(p: Path):
+    if p.is_dir():
+        if p.name in g["exclude_dirs"]:
+            return
+        for child in p.iterdir():
+            yield from _iter_source_files(child)
+        return
+
+    if p.is_file():
+        if any(p.match(glob) for glob in g["include_globs"]):
+            yield p.resolve()
+
+

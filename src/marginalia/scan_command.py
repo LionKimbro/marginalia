@@ -1,76 +1,73 @@
 # marginalia/scan_command.py
-import os
+from pathlib import Path
 
-from .discovery import iter_source_files
+from . import discovery
+
 from .errors import UsageError, MetaParseError, StrictFailure, IoFailure
 from .io_utils import write_json, stderr, dump_json
 from .indexes import build_indexes
-from .paths import is_dir, is_file, abspath, dirname
-from .state import db, g
+from .state import db, g, warnings
 from .scan import scan_file
 
+
 # meta: modules=cli,scan callers=cli.main
-def run_scan_command(args):
+def run_scan_command():
     try:
-        return _run_scan_command(args)
+        return _run_scan_command()
     except UsageError as e:
-        stderr(f"marginalia: usage error: {e}")
+        stderr(f"marginalia: usage error: {e}", e)
         return 1
     except MetaParseError as e:
-        stderr(f"marginalia: meta parse error: {e}")
+        stderr(f"marginalia: meta parse error: {e}", e)
         return 2
     except StrictFailure as e:
-        stderr(f"marginalia: strict failure: {e}")
+        stderr(f"marginalia: strict failure: {e}", e)
         return 3
     except OSError as e:
-        stderr(f"marginalia: io error: {e}")
+        stderr(f"marginalia: io error: {e}", e)
         return 4
     except Exception as e:
-        stderr(f"marginalia: error: {e}")
+        stderr(f"marginalia: error: {e}", e)
         return 4
 
 
-def _run_scan_command(args):
+def _run_scan_command():
+    args = g["args"]
     if args.pretty and args.compact:
         raise UsageError("cannot combine --pretty and --compact")
 
     # base dir heuristic: if path is dir, use it; else cwd
-    root = args.path
-    if is_dir(root):
-        base_dir = abspath(root)
+    root = Path(args.path)
+    if root.is_dir():
+        base_path = root.resolve()
     else:
-        base_dir = abspath(os.getcwd())
+        base_path = Path.cwd().resolve()
 
-    # discover files
-    files = list(iter_source_files(root, files_glob=args.files, exclude_glob=args.exclude))
-
+    # discover files (iter_source_files likely yields strings)
+    files = list(discovery.iter_source_files())
+    
     # initialize globals
-    g.clear()
-    g["command"] = "scan"
-    g["paths"] = [root]
-    g["include_globs"] = [args.files] if args.files else None
+    g["command"] = "scan"  # TODO-- PRESERVE THIS NOTE: we're getting rid of this, because it's all in args I believe
+    g["paths"] = [str(root)]  # TODO-- PRESERVE: we might be getting rid of this; candidate for evaluation for removal
+    g["include_globs"] = [args.files] if args.files else None  # TODO-- PRESERVE: might be getting rid of; candidate for removal
     g["exclude_dirs"] = None
-    g["base_path"] = base_dir
-    g["formatting_options"] = {"pretty": bool(args.pretty), "compact": bool(args.compact)}
+    g["base_path"] = base_path
 
     db[:] = []
 
-    all_warnings = []
     for p in files:
-        disp = os.path.relpath(p, base_dir)
-        items, warnings = scan_file(p, disp)
-        db.extend(items)
-        all_warnings.extend(warnings)
+        scan_file(p)
 
-    emit_inv, emit_idx = _decide_emits(args)
-    inv_dest, idx_dest = _decide_dests(args, base_dir, emit_inv, emit_idx)
+    # does the user want --inventory?  --indexes?  (default: both)
+    emit_inv, emit_idx = _decide_emits()
+    inv_dest, idx_dest = _decide_dests(emit_inv, emit_idx)
 
-    if all_warnings and args.warn:
-        for w in all_warnings:
+    if warnings and args.warn:
+        for w in warnings:
             stderr("marginalia: warning: " + w)
 
-    if all_warnings and args.strict:
-        raise StrictFailure(f"{len(all_warnings)} warning(s) in strict mode")
+    if warnings and args.strict:
+        raise StrictFailure(f"{len(warnings)} warning(s) in strict mode")
 
     pretty = bool(args.pretty)
     compact = bool(args.compact) or (not args.pretty)
@@ -89,7 +86,8 @@ def _run_scan_command(args):
     return 0
 
 
-def _decide_emits(args):
+def _decide_emits():
+    args = g["args"]
     inv_specified = args.inventory is not None
     idx_specified = args.indexes is not None
     if (not inv_specified) and (not idx_specified):
@@ -97,7 +95,8 @@ def _decide_emits(args):
     return inv_specified, idx_specified
 
 
-def _decide_dests(args, base_dir, emit_inv, emit_idx):
+def _decide_dests(emit_inv, emit_idx):
+    args = g["args"]
     from .output_routing import decide_destinations, decide_scan_emits
     # re-use decision logic but keep scan’s emission rules local to this file
     inv_specified = args.inventory is not None
@@ -114,9 +113,9 @@ def _decide_dests(args, base_dir, emit_inv, emit_idx):
     inv_dest = None
     idx_dest = None
     if emit_inv:
-        inv_dest = _route_one(inv_opt, os.path.join(base_dir, "inventory.json"))
+        inv_dest = _route_one(inv_opt, g["base_path"] / "inventory.json")
     if emit_idx:
-        idx_dest = _route_one(idx_opt, os.path.join(base_dir, "indexes.json"))
+        idx_dest = _route_one(idx_opt, g["base_path"] / "indexes.json")
 
     n_stdout = 0
     if inv_dest == "stdout":
@@ -129,16 +128,18 @@ def _decide_dests(args, base_dir, emit_inv, emit_idx):
     return inv_dest, idx_dest
 
 
-def _route_one(opt_value, default_path):
-    if opt_value is None:
+def _route_one(opt_value, default_path: Path):
+    if opt_value is None or opt_value is True:
+        # user provided nothing, or just --option-name
         return default_path
-    if opt_value is True:
-        return default_path
-    if isinstance(opt_value, str) and opt_value == "stdout":
-        return "stdout"
     if isinstance(opt_value, str):
-        return opt_value
-    return default_path
+        if opt_value == "stdout":
+            # user provided stdout
+            return "stdout"
+        else:
+            # user provided explicit output path
+            return Path(opt_value)
+    raise ValueError(f"invalid output option value: {opt_value!r}")
 
 
 def _emit_one(dest, obj, pretty, compact):

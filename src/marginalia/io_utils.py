@@ -3,16 +3,28 @@ import json
 import os
 import shutil
 import tempfile
+import sys
+import traceback
 
 
 # meta: modules=io callers=*
-def stderr(msg):
-    sysmsg = msg.rstrip("\n")
+def stderr(msg=None, exc=None):
     try:
-        import sys
-        sys.stderr.write(sysmsg + "\n")
+        if msg:
+            sys.stderr.write(str(msg).rstrip("\n") + "\n")
+        
+        if exc:
+            traceback.print_exception(
+                type(exc),
+                exc,
+                exc.__traceback__,
+                file=sys.stderr,
+            )
+
     except Exception:
+        # stderr must never fail
         pass
+
 
 # meta: modules=io callers=*
 def write_text_atomic(p, text):
