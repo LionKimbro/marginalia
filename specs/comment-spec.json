@@ -3,7 +3,7 @@
     "version": "0.1",
     "purpose": "Provide structured, comment-based metadata for describing the functional organization of Python code without affecting runtime behavior.",
     "scope": "Static source analysis",
-    "binding_rule": "A meta comment applies to the immediately following bindable symbol; if an @anchor is present, the comment binds to that anchor instead.",
+    "binding_rule": "A meta comment applies to the immediately following bindable symbol; if an @anchor is present, the comment binds to that anchor; if a #id is present, it defines the canonical identifier for the bound symbol.",
     "syntax": {
       "comment_prefix": "# meta:",
       "entry_format": "key=value_list",
@@ -13,7 +13,10 @@
       "value_character_set": "a-zA-Z0-9_-#*",
       "anchor_prefix": "@",
       "anchor_character_set": "a-zA-Z0-9_-",
-      "case_sensitive": true
+      "case_sensitive": true,
+      "id_prefix": "#",
+      "id_character_set": "a-zA-Z0-9_-",
+      "id_multiplicity": "at_most_one"
     },
     "examples": [
       {
@@ -69,6 +72,12 @@
       "anchor_binding": {
         "requires_explicit_anchor": true,
         "implicit_binding": false
+      },
+      "id_binding": {
+        "optional": true,
+        "creates_symbol": false,
+        "overrides_derived_id": true,
+        "scope": "bound_symbol"
       }
     },
     "keys": {
@@ -121,7 +130,11 @@
         "callers",
         "flags"
       ],
-      "forward_compatibility": "Tools must ignore unknown keys."
+      "forward_compatibility": "Tools must ignore unknown keys.",
+      "structural_fields": [
+        "id",
+        "anchor"
+      ]
     },
     "non_goals": [
       "Runtime behavior modification",
@@ -131,8 +144,10 @@
     ],
     "output_recommendation": {
       "normalized_representation": {
+        "id": "string",
+        "id_source": "explicit | derived",
         "symbol_name": "string",
-        "symbol_type": "function | class",
+        "symbol_type": "function | class | data | anchor",
         "source_file": "string",
         "line_number": "integer",
         "meta": "object<string, set<string> | string | integer>"

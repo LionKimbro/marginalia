@@ -51,6 +51,13 @@ It is followed by **key=value** entries separated by whitespace:
 # meta: modules=db threads=main callers=3
 ```
 
+In addition to `key=value` pairs, a meta line may include:
+- a `#id` entry to define a stable identifier
+- an `@anchor` entry to specify the binding target
+
+These structural entries are optional and may appear in any order.
+
+
 ### Grammar Overview
 
 | Element | Description |
@@ -261,37 +268,88 @@ This metadata is preserved but not interpreted by Marginalia itself.
 
 ---
 
-## Parsing Guarantees
+## Stable Identifiers with `#id`
 
-- Ordering is insignificant
-- Unknown keys are preserved
-- Whitespace is ignored around separators
-- Tools must be forward-compatible
+Marginalia supports **explicit, stable identifiers** using `#id` tags.
 
-Marginalia is intentionally permissive.
+An `#id` defines the **canonical identity** of a symbol in generated inventories and downstream tooling. This is especially useful for long-lived architectures, global state, and conceptual entities whose identity should remain stable even if files or line numbers change.
 
----
+### Basic Form
 
-## Non-Goals
+```python
+# meta: #g_path modules=state @g_path writers=file_nav.start_reading readers=*
+```
 
-Marginalia explicitly does **not** aim to provide:
+Here:
 
-- Runtime behavior changes
-- Static type checking
-- Dependency enforcement
-- Call graph validation
-- Architectural policing
-
-It is a **descriptive annotation system**, not a rule engine.
+* `#g_path` defines the **symbol’s identity**
+* `@g_path` defines the **binding target**
+* Other keys (`modules`, `writers`, `readers`, etc.) remain descriptive
 
 ---
 
-## Recommended Normalized Output
+## `#id` vs `@anchor`
+
+Although they look similar, `#id` and `@anchor` serve **distinct roles**:
+
+| Feature   | Purpose                                |
+| --------- | -------------------------------------- |
+| `@anchor` | Specifies *what* the metadata binds to |
+| `#id`     | Specifies *who* the bound symbol is    |
+
+In short:
+
+> **Anchors answer “where does this bind?”
+> IDs answer “what is this called?”**
+
+They are often the same string, but they do not have to be.
+
+---
+
+## When to Use `#id`
+
+Use `#id` when you want:
+
+* Stable cross-file references
+* Persistent identities for global or shared state
+* Inventory outputs that survive refactors
+* Conceptual entities not naturally named by Python syntax
+
+Common examples include:
+
+* Global registries (`#g_args`, `#g_paths`)
+* Implicit state machines
+* Architectural indicators
+* Dataflow junction points
+
+---
+
+## Derived vs Explicit IDs
+
+If **no `#id` is provided**, Marginalia derives an identifier automatically (e.g. `state.py.db`).
+
+If a **`#id` is present**, it **always overrides** the derived identifier.
+
+---
+
+## Important Semantics
+
+* `#id` is **optional**
+* At most **one `#id`** may appear per `# meta:` line
+* `#id` **never creates a symbol**
+* `#id` **never affects runtime behavior**
+* `#id` is **structural**, not descriptive metadata
+* `#id` must be unique
+
+---
+
+## Normalized Output
 
 Tools consuming Marginalia metadata are encouraged to normalize extracted data into records like:
 
 ```json
 {
+  "id": "config.py.load_config",
   "symbol_name": "load_config",
   "symbol_type": "function",
   "source_file": "config.py",
