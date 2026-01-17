@@ -45,6 +45,21 @@ g = {
 }
 
 
-# meta: #warnings modules=state writers=scan.scan_file readers=*
-warnings = []
+# meta: #messages modules=state writers=* readers=*
+messages = []
+
+# Messages in (state.messages) have the following form:
+# {"type": "warning" | "error" | "info",
+#  "msg": "<human readable text string>",
+#  "data": {...}}
+#
+# (data contains raw data associated with the message; it should be JSON serializable)
+
+# meta: #metrics modules=state writers=* readers=*
+metrics = {}
+
+# Metrics consists of various counts;
+# They should be declared here, and always indexed directly;
+# They typically start at 0, and increment upon events of note.
+
 
