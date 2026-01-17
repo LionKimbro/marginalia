@@ -1,7 +1,9 @@
 # Marginalia
 
 Marginalia is a static analysis tool for extracting structured metadata
-from Python source code using `# meta:` comments.
+from Python source code supported with `# meta:` comments.
+
+The goal is to map out the positive structure of the program -- what exists, how it's shaped, what it claims to be, and what it promises.
 
 See `specs/` for the formal specification.
 
@@ -384,4 +386,10 @@ Think of `# meta:` lines as **margin notes for programs**—annotations for futu
 Use freely.  
 Ignore freely.  
 Extend freely.
+
+---
+
+## Related Work
+
+* [Nirjas](https://github.com/fossology/Nirjas) -- [(documentation)](https://github.com/fossology/Nirjas/wiki) -- extract comments and source code from a file, with the intent of detecting licenses, generating documentation; most major contemporary languages -- like Marginalia, it can identify the locations of functions and methods in source code, and output them to JSON
 

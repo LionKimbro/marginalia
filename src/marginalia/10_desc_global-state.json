@@ -1,0 +1,96 @@
+{
+  "import": "import marginalia.state as state",
+  "globals": {
+    "db": {
+      "type": "list[dict]",
+      "contains": "canonical inventory entries produced by scanning and meta binding",
+      "write policy": "append-only during scan"
+    },
+
+    "g['parser']": {
+      "type": "argparse.ArgumentParser",
+      "contains": "configured CLI argument parser",
+      "write policy": "written once during cli.main initialization"
+    },
+    "g['args']": {
+      "type": "argparse.Namespace",
+      "contains": "parsed command-line arguments",
+      "write policy": "written once in cli.main; treated as read-only thereafter"
+    },
+
+    "g['command']": {
+      "type": "str",
+      "contains": "execution mode (e.g., scan, index)",
+      "write policy": "set once in cli.main from parsed args"
+    },
+    "g['paths']": {
+      "type": "list of pathlib.Path",
+      "contains": "working paths for current command",
+      "write policy": "appended to while scanning for files to read during scan command"
+    },
+
+    "g['path']": {
+      "type": "pathlib.Path",
+      "contains": "current file being scanned",
+      "write policy": "set by the file reading mechanism"
+    },
+    "g['file']": {
+      "type": "io.TextIOBase",
+      "contains": "open file handle for active source file",
+      "write policy": "set by the file reading mechanism"
+    },
+    "g['line_num']": {
+      "type": "int",
+      "contains": "1-based line number of current file read cursor",
+      "write policy": "initialized to 0 at start, and incremented while reading, by file reading mechanism"
+    },
+    "g['line']": {
+      "type": "str",
+      "contains": "current line text without trailing newline",
+      "write policy": "set by file reading mechanism"
+    },
+    "g['finished_reading_file']": {
+      "type": "bool",
+      "contains": "EOF sentinel for active file scan",
+      "write policy": "set true by file reading mechanism"
+    },
+
+    "g['item']": {
+      "type": "dict",
+      "contains": "in-progress inventory item being constructed from meta lines and bindings",
+      "write policy": "created by item development mechanism, mutated by file scanning process"
+    },
+    "g['include_globs']": {
+      "type": "list[str]",
+      "contains": "glob patterns specifying which files to include in scan",
+      "write policy": "set by argument parser; there are defaults, too"
+    },
+    "g['exclude_dirs']": {
+      "type": "list[str]",
+      "contains": "directory names or patterns to skip during traversal",
+      "write policy": "set by argument parser; there are defaults, too"
+    },
+    "g['base_path']": {
+      "type": "pathlib.Path",
+      "contains": "root directory from which scanning is performed",
+      "write policy": "? (I'm not sure when it's set right now.)"
+    },
+    "g['formatting_options']": {
+      "type": "dict",
+      "contains": "JSON output and reporting style controls",
+      "write policy": "set once by cli.main"
+    },
+
+    "events": {
+      "type": "list[dict]",
+      "contains": "runtime warnings, errors, and info messages with optional data payloads",
+      "write policy": "append-only; written by any subsystem, but always via events module"
+    },
+
+    "metrics": {
+      "type": "dict[str, int]",
+      "contains": "named counters tracking notable scan and index events",
+      "write policy": "keys declared at startup; values incremented during execution; fairly ad-hoc -- may use .get with default 0"
+    }
+  }
+}

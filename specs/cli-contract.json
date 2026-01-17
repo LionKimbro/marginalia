@@ -1,76 +1,41 @@
 {
   "marginalia_cli": {
-    "version": "0.1",
+    "version": "0.3",
     "command": "marginalia",
-    "purpose": "Static analysis tool for extracting Marginalia meta comments from Python source code and emitting structured JSON representations.",
+    "purpose": "Static analysis tool for extracting Marginalia meta comments from Python source code and producing structured artifacts through explicit execution modes.",
     "design_principles": [
-      "Non-invasive",
-      "Composable",
-      "Scriptable",
-      "JSON-first",
-      "No runtime dependency"
+      "Single-purpose execution modes",
+      "Inventory-first architecture",
+      "File-based artifact boundaries",
+      "Composable multi-step workflows",
+      "JSON-first outputs",
+      "Structured execution summaries"
     ],
     "invocation": {
-      "pattern": "marginalia <command> [options] <path>",
-      "stdout": "JSON output by default",
-      "stderr": "Errors and warnings",
+      "pattern": "marginalia <mode> [arguments] [options]",
+      "stdout": "Used only for optional printing of execution summaries and human-readable messages",
+      "stderr": "Reserved for internal debugging and fatal execution failures",
       "default_exit_code": 0
     },
-    "commands": {
+    "modes": {
       "scan": {
-        "description": "Scan Python source files for Marginalia meta comments and emit structured outputs.",
+        "description": "Scan Python source files and generate a canonical Marginalia inventory artifact.",
         "arguments": {
           "path": {
             "type": "string",
-            "description": "File or directory path to scan.",
-            "required": true
+            "description": "Directory to scan for Python source files.",
+            "default": "."
           }
         },
         "options": {
-          "output_selection": {
-            "--inventory": {
-              "type": "string | boolean",
-              "nargs": "?",
-              "description": "Emit inventory output. Optional value specifies output destination.",
-              "allowed_values": [
-                "stdout",
-                "<filename>"
-              ],
-              "default_filename": "inventory.json",
-              "routing_semantics": {
-                "no_value": "Write inventory output to default file.",
-                "value=stdout": "Write inventory output to stdout.",
-                "value=<filename>": "Write inventory output to the specified file."
-              }
-            },
-            "--indexes": {
-              "type": "string | boolean",
-              "nargs": "?",
-              "description": "Emit indexes output. Optional value specifies output destination.",
-              "allowed_values": [
-                "stdout",
-                "<filename>"
-              ],
-              "default_filename": "indexes.json",
-              "routing_semantics": {
-                "no_value": "Write indexes output to default file.",
-                "value=stdout": "Write indexes output to stdout.",
-                "value=<filename>": "Write indexes output to the specified file."
-              }
+          "output": {
+            "--output": {
+              "type": "string",
+              "description": "Path of inventory file to write.",
+              "default": "inventory.json"
             }
           },
-          "formatting": {
-            "--pretty": {
-              "type": "boolean",
-              "description": "Pretty-print JSON output."
-            },
-            "--compact": {
-              "type": "boolean",
-              "description": "Minified JSON output.",
-              "default": true
-            }
-          },
-          "scope_control": {
+          "scope": {
             "--files": {
               "type": "string",
               "description": "Glob pattern restricting which files are scanned."
@@ -79,190 +44,147 @@
               "type": "string",
               "description": "Glob pattern for excluding files or directories."
             }
-          },
-          "index_control": {
-            "--indexes-only": {
-              "type": "array<string>",
-              "description": "Restrict emitted indexes to the specified list.",
-              "allowed_values": [
-                "by-symbol",
-                "by-file",
-                "by-module",
-                "by-thread",
-                "by-flag"
-              ]
-            }
-          },
-          "diagnostics": {
-            "--warn": {
-              "type": "boolean",
-              "description": "Emit warnings for malformed or unbound meta comments."
-            },
-            "--strict": {
-              "type": "boolean",
-              "description": "Treat warnings as errors and return non-zero exit code."
-            }
-          },
-          "misc": {
-            "--version": {
-              "type": "boolean",
-              "description": "Print Marginalia CLI version and exit."
-            },
-            "--help": {
-              "type": "boolean",
-              "description": "Print CLI usage information and exit."
-            }
           }
         },
-        "output_structure": {
-          "inventory": {
-            "description": "Flat list of all annotated symbols.",
-            "emitted_when": [
-              "--inventory",
-              "--all"
-            ]
+        "input": {
+          "source": "filesystem",
+          "reads_source_files": true
+        },
+        "output": {
+          "primary_artifact": {
+            "artifact": "inventory",
+            "default_filename": "inventory.json",
+            "schema": "marginalia.inventory.v0.3"
           },
-          "indexes": {
-            "description": "Inverted indexes over the symbol inventory.",
-            "emitted_when": [
-              "--indexes",
-              "--all"
-            ],
-            "indexes": [
-              "by-symbol",
-              "by-file",
-              "by-module",
-              "by-thread",
-              "by-flag"
-            ]
+          "summary_artifact": {
+            "artifact": "execution-summary",
+            "default_filename": "scan-summary.json",
+            "schema": "marginalia.execution-summary.v0.1"
           }
         },
-        "output_behavior": {
-          "output_behavior": {
-            "default": {
-              "emits": [
-                "inventory",
-                "indexes"
-              ],
-              "destination": "files"
-            },
-            "selection_rules": [
-              "If neither --inventory nor --indexes is specified, both outputs are emitted.",
-              "If only --inventory is specified, only inventory output is emitted.",
-              "If only --indexes is specified, only indexes output is emitted.",
-              "If both --inventory and --indexes are specified, both outputs are emitted."
-            ],
-            "routing_rules": [
-              "Each emitted output is routed independently.",
-              "If an output option is given a value of 'stdout', that output is written to stdout.",
-              "If an output option is given an explicit filename, that output is written to that file.",
-              "If an output option is given without a value, its default filename is used.",
-              "If an output option is not specified but is emitted by default, its default filename is used."
-            ],
-            "default_filenames": {
-              "inventory": "inventory.json",
-              "indexes": "indexes.json"
-            },
-            "stdout_rules": [
-              "At most one output may be routed to stdout per invocation.",
-              "If multiple outputs are configured for stdout, this is a usage error."
-            ]
-          }
-        }
+        "invariants": [
+          "Inventory is always generated in this mode.",
+          "Indexes are never generated in this mode.",
+          "All diagnostics are recorded in the execution summary artifact.",
+          "Source files are the only semantic input."
+        ]
       },
-      "indexes": {
-        "description": "Generate indexes output from an existing Marginalia inventory file.",
+      "index": {
+        "description": "Generate index projections from an existing Marginalia inventory artifact.",
         "arguments": {
-          "inventory_file": {
+          "inventory_path": {
             "type": "string",
-            "description": "Path to a Marginalia inventory JSON file.",
-            "required": true
+            "description": "Path to inventory JSON file.",
+            "default": "inventory.json"
           }
         },
         "options": {
           "output": {
-            "--indexes": {
-              "type": "string | boolean",
-              "nargs": "?",
-              "description": "Emit indexes output. Optional value specifies output destination.",
-              "allowed_values": [
-                "stdout",
-                "<filename>"
-              ],
-              "default_filename": "indexes.json",
-              "routing_semantics": {
-                "no_value": "Write indexes output to default file.",
-                "value=stdout": "Write indexes output to stdout.",
-                "value=<filename>": "Write indexes output to the specified file."
-              }
-            }
-          },
-          "formatting": {
-            "--pretty": {
-              "type": "boolean",
-              "description": "Pretty-print JSON output."
-            },
-            "--compact": {
-              "type": "boolean",
-              "description": "Minified JSON output.",
-              "default": true
-            }
-          },
-          "misc": {
-            "--version": {
-              "type": "boolean",
-              "description": "Print Marginalia version and exit."
-            },
-            "--help": {
-              "type": "boolean",
-              "description": "Print CLI usage information and exit."
+            "--output": {
+              "type": "string",
+              "description": "Path of index file to write.",
+              "default": "index.json"
             }
           }
         },
-        "input_expectations": {
-          "inventory_schema": "marginalia.inventory.v0.1",
-          "behavior_on_invalid_inventory": "Error and non-zero exit code."
+        "input": {
+          "artifact": "inventory",
+          "schema": "marginalia.inventory.v0.3",
+          "reads_source_files": false
         },
-        "output_behavior": {
-          "emits": [
-            "indexes"
-          ],
-          "default_destination": "files"
+        "output": {
+          "primary_artifact": {
+            "artifact": "indexes",
+            "default_filename": "index.json",
+            "schema": "marginalia.indexes.v0.3"
+          },
+          "summary_artifact": {
+            "artifact": "execution-summary",
+            "default_filename": "index-summary.json",
+            "schema": "marginalia.execution-summary.v0.1"
+          }
         },
         "invariants": [
-          "Indexes output must be derived solely from the provided inventory.",
-          "No source files are read during this command.",
-          "Indexes output must conform to the indexes output specification."
-        ],
-        "non_goals": [
-          "Rescanning source code",
-          "Modifying inventory contents",
-          "Validating meta semantics beyond structural correctness"
+          "Indexes must be derived solely from the provided inventory.",
+          "No source files are read in this mode.",
+          "Inventory contents are not modified.",
+          "All diagnostics are recorded in the execution summary artifact."
         ]
       }
     },
-    "exit_codes": {
-      "0": "Success",
-      "1": "Usage or argument error",
-      "2": "Meta comment parse error",
-      "3": "Strict-mode validation failure",
-      "4": "Filesystem or IO error"
+    "universal-options": {
+      "--summary": {
+        "type": "string",
+        "description": "Path of execution summary file to write.",
+        "default": "<mode>-summary.json"
+      },
+      "--print-summary": {
+        "type": "boolean",
+        "description": "Print execution summary JSON to stdout after completion.",
+        "default": true
+      },
+      "--fail": {
+        "type": "string",
+        "allowed_values": [
+          "warn",
+          "halt"
+        ],
+        "default": "halt",
+        "description": "Failure handling policy when errors are encountered."
+      },
+      "--json": {
+        "type": "string",
+        "allowed_values": [
+          "pretty",
+          "compact"
+        ],
+        "default": "pretty",
+        "description": "JSON formatting style for output artifacts."
+      },
+      "--version": {
+        "type": "boolean",
+        "description": "Print Marginalia version and exit."
+      },
+      "--help": {
+        "type": "boolean",
+        "description": "Print CLI usage information and exit."
+      }
     },
-    "non_goals": [
-      "Modifying source files",
-      "Enforcing meta semantics",
-      "Requiring complete annotations",
-      "Executing Python code",
-      "Imposing project structure"
-    ],
-    "invariants": [
-      "CLI must always emit valid JSON when successful",
-      "Indexes must be derivable from inventory output",
-      "Unknown meta keys must not cause failure",
-      "Missing meta keys must not cause failure",
-      "Inventory output is the canonical representation of Marginalia analysis.",
-      "Indexes output is always derivable from inventory output.",
-      "Commands operating on inventory files must not depend on source code."
+    "execution_summary_schema_stub": {
+      "version": "marginalia.execution-summary.v0.1",
+      "description": "Structured record of a Marginalia execution run. This schema is intentionally minimal and extensible.",
+      "shape": {
+        "invocation": {
+          "command-line": "string",
+          "execution-mode": "scan | index",
+          "time-of-execution": "float | string"
+        },
+        "result": "success | failure",
+        "warnings": "array",
+        "errors": "array",
+        "notes": "optional array or object for future extensions",
+        "metrics": {
+          "files_scanned": "int",
+          "symbols_found": "int",
+          "warnings_count": "int",
+          "errors_count": "int"
+        }
+      }
+    },
+    "exit_codes": {
+      "0": "Success (no errors, or --fail=warn w/ recoverable or tolerable errors)",
+      "1": "Usage or argument error",
+      "2": "Parse or schema validation error (malformed inventory.json input)",
+      "3": "Failure policy halt condition triggered (--fail=halt, no errors tolerated)",
+      "4": "Filesystem or IO error (cannot read base path, cannot output files, permission denied)"
+    },
+    "global_invariants": [
+      "Each execution produces exactly one primary artifact.",
+      "Each execution produces exactly one execution summary artifact.",
+      "Execution modes do not perform multiple pipeline stages.",
+      "Inventory is the canonical representation of Marginalia analysis.",
+      "All projections must be derivable from inventory artifacts.",
+      "All warnings and errors are recorded in execution summaries."
     ]
   }
 }

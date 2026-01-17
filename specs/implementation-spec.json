@@ -12,8 +12,12 @@
     ]
   },
   "architecture": {
-    "model": "global-state-driven",
+    "model": "artifact-pipeline",
     "design_principle": "single canonical inventory; all other artifacts are pure projections",
+    "commands": {
+      "scan": "Source → Inventory only",
+      "index": "Inventory → Indexes only"
+    },
     "error_handling": "fail-fast; invariant violations are programmer errors",
     "backward_compatibility": false
   },
@@ -55,29 +59,19 @@
     }
   },
   "data_flow": {
-    "phases": [
-      {
-        "name": "initialization",
-        "description": "Global state containers are created and argparse populates control dictionary g."
-      },
-      {
-        "name": "inventory_population",
-        "description": "Exactly one of the following occurs:",
-        "options": [
-          "scan Python source files and populate db",
-          "load inventory.json and populate db"
-        ],
-        "postcondition": "db is fully populated and valid."
-      },
-      {
-        "name": "projection",
-        "description": "Indexes are derived deterministically from db."
-      },
-      {
-        "name": "emission",
-        "description": "Inventory and/or indexes are written to disk or stdout."
-      }
-    ]
+    "initialization": {
+      "description": "Global state containers are created and argparse populates control dictionary g."
+    },
+    "scan_phase": {
+      "input": "Python source tree",
+      "output": "inventory.json",
+      "postcondition": "inventory strictly conforms to marginalia_outputs.common_item_shape"
+    },
+    "index_phase": {
+      "input": "inventory.json",
+      "output": "indexes.json",
+      "postcondition": "all index entries reference items present in inventory via id"
+    }
   },
   "inventory_schema": {
     "source": "marginalia_outputs.common_item_shape",

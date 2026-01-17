@@ -31,7 +31,7 @@ def read_line():
     Returns:
       True if a line was read, False if EOF was reached.
     """
-    if g.get("finished_reading_file"):
+    if g["finished_reading_file"]:
         return False
     
     line = g["file"].readline()

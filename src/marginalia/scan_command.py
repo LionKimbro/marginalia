@@ -58,6 +58,21 @@ def _run_scan_command():
     for p in files:
         scan_file(p)
 
+    # check for duplicate ids
+    seen = {}
+    for i, rec in enumerate(db):
+        rid = rec.get("id")
+        if not rid:
+            continue
+
+        if rid in seen:
+            first_i = seen[rid]
+            warnings.append(
+                f"duplicate id '{rid}' in entries {first_i} and {i}"
+            )
+        else:
+            seen[rid] = i
+
     # does the user want --inventory?  --indexes?  (default: both)
     emit_inv, emit_idx = _decide_emits()
     inv_dest, idx_dest = _decide_dests(emit_inv, emit_idx)

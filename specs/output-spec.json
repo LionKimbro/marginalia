@@ -1,24 +1,32 @@
 {
   "marginalia_outputs": {
-    "version": "0.2",
+    "version": "0.3",
+    "version_creation_date": "2026-01-14",
     "assumes_meta_spec": "marginalia.meta.v0.1",
     "common_item_shape": {
       "fields": {
+        "id": {
+          "type": "string",
+          "semantics": "Globally unique identifier for this inventory item. Human-declared anchors begin with '#'. Generated structural IDs use prefixes such as 'mod:', 'fn:', 'class:', 'var:', 'anchor:', followed by a module path, followed by the symbol."
+        },
         "symbol": {
-          "type": "string"
+          "type": "string",
+          "semantics": "Fully-qualified symbolic name of the item within the codebase. For modules this is the module path; for functions, classes, and vars this includes the module path and enclosing scopes (e.g. 'pkg.mod.Class.method'); for anchors this is the declared anchor name.  Primary display name of the item."
         },
         "symbol_type": {
           "type": "string",
           "allowed": [
+            "module",
             "function",
             "class",
-            "data",
+            "var",
             "anchor"
           ],
           "semantics": {
+            "module": "A Python source module (file-level unit.)",
             "function": "A Python function definition.",
             "class": "A Python class definition.",
-            "data": "A Python-level name binding that assigns a value to an identifier.",
+            "var": "A Python-level name binding that assigns a value to an identifier.",
             "anchor": "A meta-declared symbol that may not correspond to a Python identifier binding."
           }
         },
@@ -32,14 +40,25 @@
           "type": "string",
           "semantics": "Exact original meta comment line, including leading # and all content (including any @anchor token), with trailing newline removed."
         },
-        "modules": {
+        "systems": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "unique_items": true,
           "case_sensitivity": "insensitive",
-          "normalization": "lowercase"
+          "normalization": "lowercase",
+          "semantics": "Architectural systems or subsystems this item participates in (not Python modules). Hierarchical names using dots are allowed, e.g. 'mqtt.transport'."
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "unique_items": true,
+          "case_sensitivity": "insensitive",
+          "normalization": "lowercase",
+          "semantics": "Architectural roles this item fulfills.  For example: engine, adaptor, facade, mainloop, dispatcher, calculation."
         },
         "threads": {
           "type": "array",
@@ -95,25 +114,63 @@
         "custom": {
           "type": "object",
           "value_type": "array<string>",
-          "semantics": "Contains all parsed meta keys not recognized as reserved keys (modules, threads, callers, flags). Each key maps to an array of string values.",
+          "semantics": "Contains all parsed meta keys not recognized as reserved keys (systems, threads, callers, flags). Each key maps to an array of string values.",
           "default": {}
+        },
+        "nests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "unique_items": true,
+          "semantics": "Inventory IDs of symbols lexically nested within this item (module → classes/functions/vars; class → methods/vars; function → nested defs)."
+        },
+        "assign_type": {
+          "type": "string",
+          "semantics": "Declared expected type or role of a variable binding, especially for global or registry variables (e.g. 'dict[str, Service]', 'MQTTConnection', 'WorkerState'). Informational, not type-checked."
+        },
+        "doc": {
+          "type": "string",
+          "semantics": "Human-written documentation text associated with this item, derived from Python docstrings or '# doc:' meta lines."
         }
       },
       "field_requirements": {
         "required": [
+          "id",
           "symbol",
           "symbol_type",
           "source_file",
           "line_number",
           "raw",
-          "modules",
+          "systems",
+          "roles",
           "threads",
           "callers",
           "flags",
-          "custom"
+          "custom",
+          "nests",
+          "assign_type",
+          "doc"
         ],
         "missing_field_behavior": "error",
-        "null_values": "disallowed"
+        "null_values": "disallowed",
+        "defaults": {
+          "systems": [],
+          "roles": [],
+          "threads": [],
+          "callers": [],
+          "flags": "",
+          "custom": {},
+          "nests": [],
+          "assign_type": "",
+          "doc": ""
+        },
+        "execution_invariants": [
+          "All fields listed in 'required' are always present.",
+          "No field value is ever null.",
+          "Empty collections are represented as [] or {}.",
+          "Empty textual fields are represented as empty strings."
+        ]
       }
     },
     "outputs": {
@@ -137,8 +194,14 @@
       },
       "indexes": {
         "name": "indexes_output",
-        "description": "Multiple inverted indexes over the same symbol inventory.",
+        "description": "Multiple inverted indexes over the same symbol inventory.  The by-id index is the canonical identity map; all cross-item references and structural overlays should resolve items via id using this index.  Other indexes are presentation-oriented views.",
         "structure": {
+          "by-id": {
+            "<id>": {
+              "$ref": "#/marginalia_outputs/common_item_shape"
+            },
+            "semantics": "Canonical identity index. Maps each globally unique item id to its full inventory record. All cross-item references should resolve through this index."
+          },
           "by-symbol": {
             "<symbol-key>": {
               "$ref": "#/marginalia_outputs/common_item_shape"
@@ -151,8 +214,8 @@
               }
             }
           },
-          "by-module": {
-            "<module-name>": {
+          "by-system": {
+            "<system-name>": {
               "<symbol-key>": {
                 "$ref": "#/marginalia_outputs/common_item_shape"
               }
@@ -181,7 +244,7 @@
             "scope": "per index bucket",
             "ordering": "source order within the bucket"
           },
-          "identity_note": "Symbol keys are presentation keys only; item identity remains (symbol, source_file, line_number)."
+          "identity_note": "Symbol keys are presentation keys only; item identity is defined by id."
         },
         "indexing_rules": {
           "multi_membership": "A symbol may appear in multiple index buckets.",
@@ -195,7 +258,8 @@
     "invariants": [
       "All indexed outputs must reference items present in inventory output.",
       "No indexed output may introduce new symbols.",
-      "Item identity is defined by (symbol, source_file, line_number)."
+      "Item identity is defined by id.",
+      "All cross-item references must be resolvable via the by-id index."
     ],
     "non_goals": [
       "Deduplication across files",

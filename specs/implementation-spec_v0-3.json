@@ -1,0 +1,781 @@
+{
+  "implementation_spec": {
+    "name": "marginalia",
+    "spec_kind": "implementation-spec.json",
+    "version": "0.3",
+    "version_creation_date": "2026-01-15",
+    "ethos": {
+      "execution_story": "narrative execution over abstraction layers",
+      "scanner_role": "harvester_not_interpreter",
+      "binding_philosophy": "temporal locality; meta binds in the stream to the next bindable symbol unless explicitly anchored",
+      "architecture_style": [
+        "process_focal_machine",
+        "singleton_machine_registers",
+        "global_state_driven",
+        "artifact_pipeline"
+      ],
+      "composition_model": "Unix-like agglutination: single-purpose modes that produce durable file artifacts",
+      "invariant_violations": "programmer errors; fail-fast by default"
+    },
+    "program": {
+      "purpose": "Static analysis tool for extracting Marginalia meta comments from Python source code and producing structured artifacts.",
+      "implementation_language": "python",
+      "execution_model": "single-process, batch-oriented",
+      "target_platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "compatibility": {
+        "backward_compatibility": false,
+        "supported_outputs_version": "marginalia_outputs.v0.3"
+      }
+    },
+    "cli_contract": {
+      "marginalia_cli": {
+        "version": "0.3",
+        "command": "marginalia",
+        "purpose": "Static analysis tool for extracting Marginalia meta comments from Python source code and producing structured artifacts through explicit execution modes.",
+        "design_principles": [
+          "Single-purpose execution modes",
+          "Inventory-first architecture",
+          "File-based artifact boundaries",
+          "Composable multi-step workflows",
+          "JSON-first outputs",
+          "Structured execution summaries"
+        ],
+        "invocation": {
+          "pattern": "marginalia <mode> [arguments] [options]",
+          "stdout": "Used only for optional printing of execution summaries and human-readable messages",
+          "stderr": "Reserved for internal debugging and fatal execution failures",
+          "default_exit_code": 0
+        },
+        "modes": {
+          "scan": {
+            "description": "Scan Python source files and generate a canonical Marginalia inventory artifact.",
+            "arguments": {
+              "path": {
+                "type": "string",
+                "description": "Directory to scan for Python source files.",
+                "default": "."
+              }
+            },
+            "options": {
+              "output": {
+                "--output": {
+                  "type": "string",
+                  "description": "Path of inventory file to write.",
+                  "default": "inventory.json"
+                }
+              },
+              "scope": {
+                "--files": {
+                  "type": "string",
+                  "description": "Glob pattern restricting which files are scanned."
+                },
+                "--exclude": {
+                  "type": "string",
+                  "description": "Glob pattern for excluding files or directories."
+                }
+              }
+            },
+            "input": {
+              "source": "filesystem",
+              "reads_source_files": true
+            },
+            "output": {
+              "primary_artifact": {
+                "artifact": "inventory",
+                "default_filename": "inventory.json",
+                "schema": "marginalia.inventory.v0.3"
+              },
+              "summary_artifact": {
+                "artifact": "execution-summary",
+                "default_filename": "scan-summary.json",
+                "schema": "marginalia.execution-summary.v0.1"
+              }
+            },
+            "invariants": [
+              "Inventory is always generated in this mode.",
+              "Indexes are never generated in this mode.",
+              "All diagnostics are recorded in the execution summary artifact.",
+              "Source files are the only semantic input."
+            ]
+          },
+          "index": {
+            "description": "Generate index projections from an existing Marginalia inventory artifact.",
+            "arguments": {
+              "inventory_path": {
+                "type": "string",
+                "description": "Path to inventory JSON file.",
+                "default": "inventory.json"
+              }
+            },
+            "options": {
+              "output": {
+                "--output": {
+                  "type": "string",
+                  "description": "Path of index file to write.",
+                  "default": "index.json"
+                }
+              }
+            },
+            "input": {
+              "artifact": "inventory",
+              "schema": "marginalia.inventory.v0.3",
+              "reads_source_files": false
+            },
+            "output": {
+              "primary_artifact": {
+                "artifact": "indexes",
+                "default_filename": "index.json",
+                "schema": "marginalia.indexes.v0.3"
+              },
+              "summary_artifact": {
+                "artifact": "execution-summary",
+                "default_filename": "index-summary.json",
+                "schema": "marginalia.execution-summary.v0.1"
+              }
+            },
+            "invariants": [
+              "Indexes must be derived solely from the provided inventory.",
+              "No source files are read in this mode.",
+              "Inventory contents are not modified.",
+              "All diagnostics are recorded in the execution summary artifact."
+            ]
+          }
+        },
+        "universal-options": {
+          "--summary": {
+            "type": "string",
+            "description": "Path of execution summary file to write.",
+            "default": "<mode>-summary.json"
+          },
+          "--print-summary": {
+            "type": "boolean",
+            "description": "Print execution summary JSON to stdout after completion.",
+            "default": true
+          },
+          "--fail": {
+            "type": "string",
+            "allowed_values": [
+              "warn",
+              "halt"
+            ],
+            "default": "halt",
+            "description": "Failure handling policy when errors are encountered."
+          },
+          "--json": {
+            "type": "string",
+            "allowed_values": [
+              "pretty",
+              "compact"
+            ],
+            "default": "pretty",
+            "description": "JSON formatting style for output artifacts."
+          },
+          "--version": {
+            "type": "boolean",
+            "description": "Print Marginalia version and exit."
+          },
+          "--help": {
+            "type": "boolean",
+            "description": "Print CLI usage information and exit."
+          }
+        },
+        "execution_summary_schema_stub": {
+          "version": "marginalia.execution-summary.v0.1",
+          "description": "Structured record of a Marginalia execution run. This schema is intentionally minimal and extensible.",
+          "shape": {
+            "invocation": {
+              "command-line": "string",
+              "execution-mode": "scan | index",
+              "time-of-execution": "float | string"
+            },
+            "result": "success | failure",
+            "warnings": "array",
+            "errors": "array",
+            "notes": "optional array or object for future extensions",
+            "metrics": {
+              "files_scanned": "int",
+              "symbols_found": "int",
+              "warnings_count": "int",
+              "errors_count": "int"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "Success (no errors, or --fail=warn)",
+          "1": "Usage or argument error",
+          "2": "Parse or schema validation error",
+          "3": "Failure policy halt condition triggered",
+          "4": "Filesystem or IO error"
+        },
+        "global_invariants": [
+          "Each execution produces exactly one primary artifact.",
+          "Each execution produces exactly one execution summary artifact.",
+          "Execution modes do not perform multiple pipeline stages.",
+          "Inventory is the canonical representation of Marginalia analysis.",
+          "All projections must be derivable from inventory artifacts.",
+          "All warnings and errors are recorded in execution summaries."
+        ]
+      }
+    },
+    "global_state": {
+      "policy": "single unified global state used by all commands and phases",
+      "module": "data.py",
+      "objects": {
+        "db": {
+          "type": "list",
+          "initial_value": [],
+          "description": "Canonical inventory list (in source order).",
+          "invariant": "After population, db contains only valid v0.3 inventory items."
+        },
+        "indexes": {
+          "type": "dict",
+          "initial_value": {},
+          "description": "Index projection container (empty unless index mode runs).",
+          "invariant": "Indexes introduce no new symbols; every value references an item in db (via by-id)."
+        },
+        "g": {
+          "type": "dict",
+          "initial_value": {},
+          "description": "Unified control/config registers for all modes.",
+          "required_keys_after_argparse": [
+            "command",
+            "mode",
+            "fail_policy",
+            "json_style",
+            "summary_path",
+            "print_summary",
+            "inventory_input_path",
+            "inventory_output_path",
+            "indexes_output_path",
+            "base_path",
+            "include_globs",
+            "exclude_globs",
+            "exclude_dirs"
+          ],
+          "execution_registers": [
+            "path",
+            "file",
+            "line",
+            "line_num",
+            "finished_reading_file",
+            "item"
+          ],
+          "invariant": "All required keys exist after argument parsing; execution registers are present during scan file traversal."
+        },
+        "warnings": {
+          "type": "list",
+          "initial_value": [],
+          "description": "Accumulated non-fatal warnings for the current run."
+        },
+        "errors": {
+          "type": "list",
+          "initial_value": [],
+          "description": "Accumulated errors for the current run (may trigger halt per fail policy)."
+        }
+      }
+    },
+    "artifacts": {
+      "inventory": {
+        "schema_ref": "marginalia_outputs.v0.3.outputs.inventory",
+        "filename_default": "inventory.json",
+        "content_source": "data.db",
+        "ordering": "source order",
+        "semantics": "Complete, lossless enumeration of Marginalia-bound symbols in scan order."
+      },
+      "indexes": {
+        "schema_ref": "marginalia_outputs.v0.3.outputs.indexes",
+        "filename_default": "index.json",
+        "content_source": "data.indexes",
+        "semantics": "Perspective-based projections over the shared inventory; by-id is canonical identity."
+      },
+      "execution_summary": {
+        "schema_id": "marginalia.execution-summary.v0.1",
+        "filename_default": "<mode>-summary.json",
+        "semantics": "Structured record of a single Marginalia execution run, including diagnostics and metrics."
+      }
+    },
+    "schemas": {
+      "inventory_item_shape": {
+        "source": "marginalia_outputs.v0.3.common_item_shape",
+        "field_requirements": {
+          "required": [
+            "id",
+            "symbol",
+            "symbol_type",
+            "source_file",
+            "line_number",
+            "raw",
+            "systems",
+            "roles",
+            "threads",
+            "callers",
+            "flags",
+            "custom",
+            "nests",
+            "assign_type",
+            "doc"
+          ],
+          "missing_field_behavior": "error",
+          "null_values": "disallowed",
+          "defaults": {
+            "systems": [],
+            "roles": [],
+            "threads": [],
+            "callers": [],
+            "flags": "",
+            "custom": {},
+            "nests": [],
+            "assign_type": "",
+            "doc": ""
+          },
+          "execution_invariants": [
+            "All required fields are always present.",
+            "No field value is ever null.",
+            "Empty collections are represented as [] or {}.",
+            "Empty textual fields are represented as empty strings."
+          ]
+        }
+      },
+      "indexes_shape": {
+        "required_top_level_keys": [
+          "by-id",
+          "by-symbol",
+          "by-file",
+          "by-system",
+          "by-thread",
+          "by-flag"
+        ],
+        "symbol_key_rules": {
+          "base_key": "<symbol-name>",
+          "collision_resolution": {
+            "strategy": "serial_suffix",
+            "format": "<symbol-name> (<n>)",
+            "scope": "per index bucket",
+            "ordering": "source order within the bucket"
+          },
+          "identity_note": "Symbol keys are presentation keys only; item identity is defined by id."
+        },
+        "indexing_rules": {
+          "multi_membership": true,
+          "missing_keys": "omit from that index",
+          "unknown_meta_keys": "preserved in item.custom but not indexed unless explicitly configured",
+          "ordering": "undefined (JSON object); consumers may sort"
+        }
+      }
+    },
+    "pipeline": {
+      "scan": {
+        "phases": [
+          {
+            "name": "initialize",
+            "actions": [
+              "initialize data.db, data.indexes, data.warnings, data.errors",
+              "parse CLI args into data.g",
+              "initialize execution summary draft"
+            ],
+            "postconditions": [
+              "data.g contains required control keys",
+              "data.db is empty and ready",
+              "data.indexes is empty"
+            ]
+          },
+          {
+            "name": "discover_files",
+            "actions": [
+              "resolve base_path",
+              "walk directories",
+              "apply include/exclude filters",
+              "produce ordered file list"
+            ],
+            "postconditions": [
+              "file list is deterministic given filesystem state and filters"
+            ]
+          },
+          {
+            "name": "scan_files_streaming",
+            "actions": [
+              "for each file, stream lines forward-only",
+              "detect meta lines",
+              "parse meta grammar into kv + optional anchor",
+              "bind meta to next bindable symbol (unless anchored)",
+              "assemble items using v0.3 defaults and invariants",
+              "append items to data.db in scan order",
+              "record warnings (e.g., binding failure) without stopping unless fail policy halts"
+            ],
+            "postconditions": [
+              "data.db is populated",
+              "all items are structurally valid v0.3 containers (required fields present, no nulls)"
+            ]
+          },
+          {
+            "name": "validate_inventory_structural",
+            "actions": [
+              "validate every item against v0.3 structural rules",
+              "validate id uniqueness",
+              "validate symbol_type domain",
+              "validate callers union type constraints"
+            ],
+            "postconditions": [
+              "inventory is structurally valid or run is marked failure per fail policy"
+            ]
+          },
+          {
+            "name": "emit_inventory",
+            "actions": [
+              "serialize data.db to inventory.json (or path in g)",
+              "serialize execution summary to summary path",
+              "optionally print summary to stdout"
+            ],
+            "postconditions": [
+              "exactly one primary artifact written",
+              "exactly one summary artifact written"
+            ]
+          }
+        ],
+        "forbidden_behaviors": [
+          "constructing indexes",
+          "reading any inventory input as semantic source"
+        ]
+      },
+      "index": {
+        "phases": [
+          {
+            "name": "initialize",
+            "actions": [
+              "initialize data.db, data.indexes, data.warnings, data.errors",
+              "parse CLI args into data.g",
+              "initialize execution summary draft"
+            ],
+            "postconditions": [
+              "data.g contains required control keys",
+              "data.indexes is empty"
+            ]
+          },
+          {
+            "name": "load_inventory",
+            "actions": [
+              "read inventory JSON",
+              "validate inventory structural schema",
+              "populate data.db in file order"
+            ],
+            "postconditions": [
+              "data.db is populated and structurally valid"
+            ]
+          },
+          {
+            "name": "build_indexes",
+            "actions": [
+              "construct indexes.by-id as canonical identity map from data.db",
+              "construct by-symbol, by-file, by-system, by-thread, by-flag as pure projections",
+              "apply symbol-key collision resolution per bucket"
+            ],
+            "postconditions": [
+              "data.indexes is fully populated",
+              "every index entry resolves to an item in indexes.by-id"
+            ]
+          },
+          {
+            "name": "validate_indexes_structural",
+            "actions": [
+              "validate required index keys exist",
+              "validate by-id completeness for all inventory items",
+              "validate no index introduces new items"
+            ],
+            "postconditions": [
+              "indexes are structurally valid or run is marked failure per fail policy"
+            ]
+          },
+          {
+            "name": "emit_indexes",
+            "actions": [
+              "serialize data.indexes to index.json (or path in g)",
+              "serialize execution summary to summary path",
+              "optionally print summary to stdout"
+            ],
+            "postconditions": [
+              "exactly one primary artifact written",
+              "exactly one summary artifact written"
+            ]
+          }
+        ],
+        "forbidden_behaviors": [
+          "reading source files",
+          "mutating inventory contents"
+        ]
+      }
+    },
+    "scan_engine": {
+      "component_id": "marginalia.scan",
+      "role": "streaming metadata harvester",
+      "primary_function": "Extract comment-based metadata and bind it to nearby code symbols using a linear file scan.",
+      "execution_model": {
+        "style": "procedural_stream",
+        "cursor": "global_file_cursor",
+        "input_unit": "single_line",
+        "control_flow": "single_pass_linear",
+        "backtracking": false,
+        "lookahead": "limited (binding to next symbol only)",
+        "reentrancy": false,
+        "parallelism": false
+      },
+      "state_model": {
+        "coordination_mechanism": "shared_global_state",
+        "active_item_register": "g['item']",
+        "file_registers": [
+          "g['path']",
+          "g['file']",
+          "g['line']",
+          "g['line_num']",
+          "g['finished_reading_file']"
+        ],
+        "inventory_sink": "data.db",
+        "warnings_sink": "data.warnings",
+        "philosophy": "singleton_machine_registers"
+      },
+      "mechanisms": {
+        "file_cursor": {
+          "component": "marginalia.file_nav",
+          "role": "scan-time file navigation and temporal cursor control",
+          "design_intent": "Treat each source file as a forward-only temporal stream rather than a random-access buffer, preserving narrative execution order for meta binding.",
+          "state_location": "global register dict g",
+          "cursor_model": {
+            "style": "monotonic forward-only",
+            "input_unit": "single text line",
+            "rewind": false,
+            "random_access": false,
+            "parallelism": false
+          },
+          "registers_used": {
+            "g['path']": "current file path being scanned",
+            "g['file']": "open file object for current file",
+            "g['line']": "current line content (string, no trailing newline) or null at EOF",
+            "g['line_num']": "1-based line number of current line or null at EOF",
+            "g['finished_reading_file']": "boolean EOF flag for current file"
+          },
+          "initialization": {
+            "trigger": "called once per file before scanning begins",
+            "effects": [
+              "open file in utf-8 with replacement for decode errors",
+              "reset line counter to zero",
+              "clear current line register",
+              "clear EOF flag"
+            ]
+          },
+          "advance_operation": {
+            "trigger": "called repeatedly during scan loop",
+            "effects_on_success": [
+              "increments line number",
+              "updates current line register",
+              "returns true"
+            ],
+            "effects_on_eof": [
+              "sets finished_reading_file to true",
+              "sets line and line_num to null",
+              "returns false"
+            ]
+          },
+          "coordination_contract": {
+            "caller_responsibility": "scan loop controls iteration; cursor does not loop internally",
+            "idempotence_rule": "calling advance after EOF is a no-op returning false",
+            "error_handling": "file IO errors are treated as fatal and propagated to execution error handling"
+          },
+          "philosophical_alignment": [
+            "temporal locality over structural abstraction",
+            "machine registers over encapsulated iterators",
+            "explicit state transitions over hidden control flow"
+          ]
+        },
+        "meta_detection": {
+          "mechanism": "line prefix / pattern test",
+          "scope": "single line only",
+          "python_syntax_dependency": "none"
+        },
+        "meta_grammar": {
+          "output_contract": {
+            "kv": "dict[str, list[str]]",
+            "anchor": "optional string",
+            "item_id": "optional explicit id"
+          },
+          "separation_of_concerns": "grammar produces tokens; scanner assigns meaning"
+        },
+        "binding_probe": {
+          "trigger": "invoked only after meta line without anchor",
+          "scope": "local forward scan only",
+          "skip_rules": "ignore blank lines, non-meta comments, decorators",
+          "failure_mode": "non-fatal warning (unless fail policy halts)"
+        },
+        "bindable_detection": {
+          "scope": "lexical/shallow parsing only",
+          "targets": [
+            "function",
+            "class",
+            "var",
+            "module"
+          ],
+          "intent": "identify the next bindable symbol line and classify it without full AST interpretation",
+          "notes": [
+            "This detector may be indentation-aware for nesting attribution, but must preserve the temporal binding model.",
+            "This detector must remain robust under common formatting, but is not required to accept every legal Python construct."
+          ]
+        },
+        "item_assembly": {
+          "constructor": "new_item() yields a fully-shaped v0.3 container with defaults applied",
+          "mutation_model": "incremental in-place enrichment",
+          "required_property": "iteration safety: lists/dicts are never null; strings default to empty"
+        },
+        "semantic_routing": {
+          "routing_model": "explicit key dispatch",
+          "reserved_keys": [
+            "systems",
+            "roles",
+            "threads",
+            "callers",
+            "flags"
+          ],
+          "custom_fallback": "item['custom'][k] = list[str]",
+          "normalization_rules": {
+            "systems_roles_threads": "lowercase + deduplicate preserving order",
+            "flags": "unique-character string set (stable order of appearance)",
+            "callers": "union type: list[str] | '*' | int"
+          }
+        },
+        "identity_resolution": {
+          "policy": "explicit overrides derived",
+          "explicit_sources": [
+            "@id token",
+            "anchor-declared id conventions"
+          ],
+          "derived_sources": [
+            "generated prefixes: mod:, fn:, class:, var:, anchor:"
+          ],
+          "invariants": [
+            "id must be globally unique within the inventory",
+            "symbol is a presentation/display name; identity is id"
+          ]
+        },
+        "inventory_append": {
+          "append_policy": "append only after full item assembly",
+          "ordering": "scan order preserved"
+        }
+      },
+      "anti_patterns": {
+        "ast_driven_binding": {
+          "rejected": true,
+          "reason": "Marginalia binding semantics are stream-local and comment-driven; AST-first collapses the temporal narrative."
+        },
+        "schema_validation_during_harvest": {
+          "rejected": true,
+          "reason": "Harvesting and enforcement are separated; structural validation is a later phase."
+        },
+        "high_parameter_interfaces": {
+          "rejected": true,
+          "reason": "coordination should occur through shared registers, not call stacks"
+        }
+      }
+    },
+    "index_engine": {
+      "component_id": "marginalia.index",
+      "role": "pure projection builder",
+      "primary_function": "Construct inverted indexes from inventory without reading source.",
+      "projection_invariants": [
+        "Inventory fully determines all index outputs.",
+        "Indexes introduce no new information.",
+        "All cross-item references must resolve via indexes.by-id."
+      ],
+      "indexes_built": [
+        "by-id",
+        "by-symbol",
+        "by-file",
+        "by-system",
+        "by-thread",
+        "by-flag"
+      ],
+      "bucket_omission_rule": "Items lacking membership in a bucket key are omitted from that index (e.g., empty systems => omitted from by-system)."
+    },
+    "validation": {
+      "structural_only": true,
+      "inventory_validation": {
+        "checks": [
+          "required fields present",
+          "no extra fields (if strict mode enabled)",
+          "no null values",
+          "type checks",
+          "symbol_type domain",
+          "callers union type constraints",
+          "id uniqueness"
+        ]
+      },
+      "indexes_validation": {
+        "checks": [
+          "required top-level indexes present",
+          "by-id completeness",
+          "all index values resolve to ids in by-id",
+          "collision resolution produces unique keys per bucket"
+        ]
+      }
+    },
+    "execution_summary": {
+      "schema_stub": {
+        "version": "marginalia.execution-summary.v0.1",
+        "shape": {
+          "invocation": {
+            "command_line": "string",
+            "execution_mode": "scan | index",
+            "time_of_execution": "float | string"
+          },
+          "result": "success | failure",
+          "warnings": "array",
+          "errors": "array",
+          "notes": "optional (array|object)",
+          "metrics": {
+            "files_scanned": "int",
+            "symbols_found": "int",
+            "warnings_count": "int",
+            "errors_count": "int"
+          }
+        }
+      },
+      "policy": {
+        "all_diagnostics_recorded": true,
+        "stderr_reserved_for_fatal": true,
+        "stdout_optional_summary_print": true
+      }
+    },
+    "non_goals": [
+      "Runtime behavior modification",
+      "Static type checking",
+      "Call graph inference in core v0.3 (calls are not harvested by default)",
+      "Backward compatibility with earlier formats",
+      "Partial or best-effort parsing",
+      "Semantic validation of meta values",
+      "AST-driven binding semantics"
+    ],
+    "extension_points": {
+      "optional_ast_enrichment_pass": {
+        "status": "future_optional_projection",
+        "purpose": "Structural enrichment (e.g., intra-function call surfaces) that must not affect binding semantics.",
+        "ordering_rule": "runs after streaming scan has established inventory bindings",
+        "integration_rule": "writes to separate artifacts or explicitly-namespaced custom keys; must not retroactively change item identity or binding",
+        "notes": [
+          "If implemented, this should be a separate mode or separate artifact generator to preserve single-purpose execution modes.",
+          "If it augments inventory, it must do so through stable, declared fields or item.custom namespaces, and must preserve required-field invariants."
+        ]
+      },
+      "index_configuration": {
+        "status": "optional_future",
+        "purpose": "Enable/disable specific index projections while keeping by-id canonical."
+      }
+    },
+    "guarantees": [
+      "scan never produces indexes",
+      "index never reads source files",
+      "inventory is canonical; indexes are pure projections",
+      "all required fields are present and non-null in every inventory item",
+      "outputs are deterministic given the same inputs and options"
+    ]
+  }
+}

@@ -9,9 +9,9 @@ from .state import db, g
 
 
 # meta: modules=cli callers=cli.main
-def run_indexes_command():
+def run_index_command():
     try:
-        return _run_indexes_command()
+        return _run_index_command()
     except UsageError as e:
         stderr(f"marginalia: usage error: {e}")
         return 1
@@ -28,7 +28,7 @@ def run_indexes_command():
         stderr(f"marginalia: error: {e}")
         return 4
 
-def _run_indexes_command():
+def _run_index_command():
     args = g["args"]
     if args.pretty and args.compact:
         raise UsageError("cannot combine --pretty and --compact")
