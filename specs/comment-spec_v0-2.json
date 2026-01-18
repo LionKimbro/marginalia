@@ -1,0 +1,237 @@
+{
+  "marginalia": {
+    "version": "0.2",
+    "spec_id": "marginalia.comment-spec.v0.2",
+    "spec_filename": "comment-spec_v0-2.json",
+    "purpose": "Provide structured, comment-based metadata for describing the architectural and functional organization of Python code without affecting runtime behavior.",
+    "scope": "Static source analysis",
+    "assumes_output_spec": "marginalia.output-spec.v0.3",
+    "binding_rule": "A meta comment applies to the immediately following bindable symbol; if an @anchor is present, the comment binds to that anchor; if a #id is present, it defines the canonical identifier for the bound symbol.",
+    "syntax": {
+      "comment_channels": {
+        "meta": {
+          "comment_prefix": "# meta:",
+          "entry_format": "key=value_list",
+          "separator": "whitespace",
+          "value_separator": ",",
+          "key_character_set": "a-zA-Z0-9_-",
+          "value_character_set": "a-zA-Z0-9_.-#*:/[]",
+          "anchor_prefix": "@",
+          "anchor_character_set": "a-zA-Z0-9_-",
+          "id_prefix": "#",
+          "id_character_set": "a-zA-Z0-9_:-./",
+          "id_multiplicity": "at_most_one",
+          "case_sensitive": true
+        },
+        "doc": {
+          "comment_prefix": "# doc:",
+          "content_format": "free_text",
+          "whitespace": "preserve_after_prefix",
+          "line_continuation": true,
+          "empty_doc_lines_allowed": true
+        }
+      }
+    },
+    "examples": [
+      {
+        "description": "Binding metadata to a g-var entry using explicit anchors",
+        "source": [
+          "g = {",
+          "  # meta: @X systems=coordinates roles=state threads=main flags=g",
+          "  \"X\": 0,",
+          "",
+          "  # meta: @Y systems=coordinates roles=state threads=main flags=g",
+          "  \"Y\": 0",
+          "}"
+        ],
+        "binding_result": {
+          "X": {
+            "symbol_type": "anchor",
+            "systems": [
+              "coordinates"
+            ],
+            "roles": [
+              "state"
+            ],
+            "threads": [
+              "main"
+            ],
+            "flags": "g"
+          },
+          "Y": {
+            "symbol_type": "anchor",
+            "systems": [
+              "coordinates"
+            ],
+            "roles": [
+              "state"
+            ],
+            "threads": [
+              "main"
+            ],
+            "flags": "g"
+          }
+        }
+      }
+    ],
+    "parsing_rules": {
+      "global": {
+        "multiple_entries_allowed": true,
+        "unknown_keys_allowed": true,
+        "duplicate_keys": "last_wins",
+        "whitespace": "ignored_around_separators",
+        "ordering": "insignificant",
+        "normalization": {
+          "systems": "lowercase",
+          "roles": "lowercase",
+          "threads": "lowercase",
+          "custom": "preserve"
+        }
+      },
+      "channels": {
+        "doc": {
+          "association": "same_as_meta_binding",
+          "accumulation": "adjacent_doc_lines",
+          "termination": "first_non_doc_non_blank_line",
+          "ordering": "source_order",
+          "merge_with_docstring": {
+            "enabled": true,
+            "precedence": "meta_over_docstring",
+            "separator": "\n\n"
+          }
+        }
+      }
+    },
+    "binding": {
+      "targets": [
+        "function",
+        "class",
+        "var",
+        "module",
+        "anchor"
+      ],
+      "scope_limit": "next_bindable_symbol",
+      "anchor_binding": {
+        "requires_explicit_anchor": true,
+        "implicit_binding": false
+      },
+      "id_binding": {
+        "optional": true,
+        "creates_symbol": false,
+        "overrides_derived_id": true,
+        "scope": "bound_symbol",
+        "id_semantics": "Globally unique canonical identity used in inventory and indexes."
+      }
+    },
+    "reserved_keys": {
+      "systems": {
+        "type": "set<string>",
+        "description": "Architectural systems or subsystems this symbol participates in.",
+        "normalization": "lowercase",
+        "semantics": "Conceptual systems, not Python modules. Dot hierarchy allowed.",
+        "examples": [
+          "mqtt.transport",
+          "filetalk.patchboard",
+          "ui.canvas"
+        ]
+      },
+      "roles": {
+        "type": "set<string>",
+        "description": "Architectural roles fulfilled by this symbol.",
+        "normalization": "lowercase",
+        "examples": [
+          "engine",
+          "dispatcher",
+          "facade",
+          "worker"
+        ]
+      },
+      "threads": {
+        "type": "set<string>",
+        "description": "Narrative or execution-path contexts in which this symbol participates.",
+        "normalization": "lowercase",
+        "semantics": "Conceptual execution or responsibility paths; may align with OS threads or async tasks but are not required to.",
+        "examples": [
+          "startup",
+          "ui-loop",
+          "background"
+        ]
+      },
+      "callers": {
+        "type": "array<string> | string | integer",
+        "description": "Approximate cardinality or identity of call sites.",
+        "allowed_values": {
+          "*": "Unbounded or general-purpose usage",
+          "array": "Explicit list of calling symbols",
+          "integer": "Expected number of distinct call sites"
+        },
+        "semantics": "Informational only; may be validated by tooling but never enforced."
+      },
+      "flags": {
+        "type": "string",
+        "description": "Set of single-character categorical flags encoded as a string.",
+        "constraints": {
+          "unique_characters": true
+        },
+        "semantics": "Opaque to Marginalia; interpreted only by consuming tools."
+      },
+      "assign_type": {
+        "type": "string",
+        "description": "Declared expected role or type of a variable binding.",
+        "semantics": "Informational annotation for global or registry variables.",
+        "examples": [
+          "dict[str, Service]",
+          "MQTTConnection",
+          "WorkerState"
+        ]
+      },
+      "doc": {
+        "type": "string",
+        "description": "Inline human documentation associated with this symbol.",
+        "sources": [
+          "# doc: meta lines",
+          "Python docstrings"
+        ],
+        "semantics": "Merged into inventory item documentation field."
+      }
+    },
+    "custom_keys": {
+      "allowed": true,
+      "storage": "item.custom",
+      "value_form": "array<string>",
+      "semantics": "All non-reserved meta keys are preserved verbatim for downstream tooling.",
+      "normalization": "none"
+    },
+    "structural_tokens": {
+      "anchor": {
+        "prefix": "@",
+        "creates_symbol": true,
+        "symbol_type": "anchor",
+        "binding": "only when explicitly present"
+      },
+      "id": {
+        "prefix": "#",
+        "creates_symbol": false,
+        "overrides_derived_id": true
+      }
+    },
+    "output_mapping": {
+      "raw": "Full original meta comment line is preserved verbatim.",
+      "systems": "From reserved key systems",
+      "roles": "From reserved key roles",
+      "threads": "From reserved key threads",
+      "callers": "From reserved key callers",
+      "flags": "From reserved key flags",
+      "assign_type": "From reserved key assign_type",
+      "doc": "Concatenation of accumulated '# doc:' comment lines and Python docstrings per parsing_rules.channels.doc.",
+      "custom": "All non-reserved keys mapped to arrays of strings"
+    },
+    "non_goals": [
+      "Runtime behavior modification",
+      "Static type enforcement",
+      "Dependency resolution",
+      "Call graph enforcement",
+      "Semantic validation of architectural claims"
+    ]
+  }
+}

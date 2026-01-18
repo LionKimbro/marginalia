@@ -13,6 +13,7 @@ from . import io_utils
 from . import paths
 from . import events
 from . import flowctl
+from . import runtime
 
 
 # ============================================================
@@ -60,12 +61,17 @@ def parse():
 
 
 # ============================================================
-# Execution Summary Writer (ZERO ARGUMENTS)
+# Execution Summary
 # ============================================================
 
-def write_summary():
-    args = g["args"]
+def prepare_summary_dict():
+    """
+    Construct execution summary object from global state and events.
 
+    Returns:
+        dict
+    """
+    args = g["args"]
     errcode = events.calculate_errcode()
 
     summary = {
@@ -80,30 +86,24 @@ def write_summary():
         "events": state.events,
     }
 
+    return summary
+
+
+def write_summary_output_file():
+    """
+    Write execution summary JSON to standard summary path.
+    """
+    summary = prepare_summary_dict()
     summary_path = paths.path_for("summary", "J")
     io_utils.write_json(summary_path, summary)
 
-    if args.print_summary:
-        for e in state.events:
-            if e["level"] == "info":
-                pfx = "[info]"
-            elif e["level"] == "warning":
-                pfx = "[warn]"
-            elif e["level"] == "error":
-                pfx = "[err]"
-            else:
-                pfx = "[?]"
 
-            msg = e["msg"] or ""
-            
-            lines = msg.splitlines()
-            indent = " " * (len(pfx) + 1)
-            
-            for (i, line) in enumerate(lines):
-                if i == 0:
-                    print(f"{pfx} {line}")
-                else:
-                    print(f"{indent}{line}")
+def print_events_output_lines():
+    """
+    Print human-readable summary presentation lines to stdout.
+    """
+    for line in events.generate_events_presentation_lines():
+        print(line)
 
 
 # ============================================================
@@ -112,13 +112,15 @@ def write_summary():
 
 # meta: modules=cli callers=pyproject.toml
 def main():
+    runtime.load_runtime_execution_data()
+    
     g["args"] = args = parse()
 
     if args.version and args.command is None:
-        events.report_version()
+        events.append_event("report-version")
     
     elif not args.command:
-        events.no_command_specified()
+        events.append_event("no-command-specified")
 
     else:
         try:
@@ -129,28 +131,25 @@ def main():
                 run_index_command()
 
             else:
-                events.unknown_command(args.command)
+                events.append_event("unknown-command")
         
         except flowctl.ControlledHalt:
             pass
         
         except Exception:
-            events.unhandled_exception()
-
+            events.append_event("unhandled-exception")
+    
     # ----------------------------
     # write execution summary
     # ----------------------------
-    write_summary()
+    events.write_summary_output_file()
+
+    if args.print_summary:
+        print_events_output_lines():
+
 
     # ----------------------------
     # exit policy
     # ----------------------------
-    if return_code is not None:
-        return return_code
-
-    # I'm not sure this is right --
-    if errors() and args.fail == "halt":
-        return 3
-    
-    return 0
+    return events.calculate_errcode()
 

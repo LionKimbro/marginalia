@@ -1,0 +1,38 @@
+{
+  "no-command-specified": {
+    "data-template": {
+      "cmd": "{args:command}"
+    },
+    "err": "usage",
+    "level": "error",
+    "msg-template": "No command specified.",
+    "tags": []
+  },
+  "report-version": {
+    "data-template": {
+      "version": "{fn:version}"
+    },
+    "err": null,
+    "level": "info",
+    "msg-template": "version {fn:version}",
+    "tags": []
+  },
+  "unhandeled-exception": {
+    "data-template": {
+      "traceback": "{fn:traceback}"
+    },
+    "err": "internal",
+    "level": "error",
+    "msg-template": "fatal: unhandled exception (see traceback)\n{fn:traceback}",
+    "tags": []
+  },
+  "unknown-command": {
+    "data-template": {
+      "cmd": "{args:command}"
+    },
+    "err": "usage",
+    "level": "error",
+      "msg-template": "Unknown command: {args:command}",
+    "tags": []
+  }
+}

@@ -17,9 +17,13 @@ dependencies = []
 
 [project.scripts]
 marginalia = "marginalia.cli:main"
+marginalia-event-editor = "marginalia.tools.event_editor:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"marginalia.runtime" = ["*.json"]
