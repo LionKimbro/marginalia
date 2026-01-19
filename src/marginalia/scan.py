@@ -25,7 +25,7 @@ def scan_file(p):
     start_reading(p)
 
     # Precompute display name once per file
-    source_file = str(p.relative_to(g["base_path"]))
+    source_file = str(p)
 
     while read_line():
         line = g["line"]
@@ -52,7 +52,8 @@ def scan_file(p):
             _acc_raw_line()
 
             # Merge parsed meta into the note-under-construction
-            _acc_merge_meta(parsed["kv"])
+            _acc_merge_reserved(parsed["reserved"])
+            _acc_merge_custom(parsed["custom"])
 
             # Optional explicit id (#id token in meta grammar)
             explicit_id = parsed.get("item_id")
@@ -107,7 +108,7 @@ def scan_file(p):
 def _ensure_note():
     if g["note"] is None:
         note_shape.new_note()
-        g["note"]["source_file"] = paths.pathstr_to(g["path"])
+        g["note"]["source_file"] = str(g["path"])
 
 
 def _drain_to_symbol(source_file, symbol, symbol_type, line_number):
@@ -183,25 +184,13 @@ def _merge_note_into_existing_anchor(dst, src):
     dst["raw"].extend(src["raw"])
     dst["doc"].extend(src["doc"])
 
-    # systems/roles/threads extend then normalize
-    dst["systems"] = _norm_list(dst["systems"] + src["systems"])
-    dst["roles"] = _norm_list(dst["roles"] + src["roles"])
-    dst["threads"] = _norm_list(dst["threads"] + src["threads"])
-
-    # callers/flags/assign_type overwrite if src declares them
-    if src["callers"] != [] and src["callers"] != "*" and src["callers"] is not None:
-        dst["callers"] = src["callers"]
-    elif src["callers"] == "*":
-        dst["callers"] = "*"
-    elif src["callers"] == []:
-        # treat empty list as a real declaration; last wins
-        dst["callers"] = []
-
-    if src["flags"]:
-        dst["flags"] = _merge_flags(dst["flags"], src["flags"])
-
-    if src["assign_type"]:
-        dst["assign_type"] = src["assign_type"]
+    # systems/roles/threads/callers extend then normalize
+    dst["systems"] = _norm_list(dst["systems"] + src["systems"], "Uc")
+    dst["roles"] = _norm_list(dst["roles"] + src["roles"], "Uc")
+    dst["threads"] = _norm_list(dst["threads"] + src["threads"], "Uc")
+    dst["callers"] = _norm_list(dst["callers"] + src["callers"], "U")
+    if src["flags"]: dst["flags"] = _merge_flags(dst["flags"], src["flags"])
+    if src["assign_type"]: dst["assign_type"] = src["assign_type"]
 
     # custom: extend arrays per key
     for k, vals in src["custom"].items():
@@ -210,8 +199,7 @@ def _merge_note_into_existing_anchor(dst, src):
         dst["custom"][k].extend(vals)
 
     # nests: (not harvested in scan currently; preserve if present)
-    if src["nests"]:
-        dst["nests"] = _norm_list(dst["nests"] + src["nests"])
+    if src["nests"]: dst["nests"] = _norm_list(dst["nests"] + src["nests"], "U")
 
 
 # ------------------------------------------------------------
@@ -233,43 +221,28 @@ def _acc_doc_line():
     g["note"]["doc"].append(text)
 
 
-def _acc_merge_meta(meta_kv):
-    """
-    Merge meta kv into the current note.
-
-    Overwrite keys:
-      - callers, flags, assign_type   (scalar-ish / union-ish)
-
-    Extend keys:
-      - systems, roles, threads, and all custom keys
-
-    Alias:
-      - modules => systems   (legacy compatibility)
-    """
+def _acc_merge_reserved(reserved):
     note = g["note"]
-
-    for k, vals in meta_kv.items():
-        if k == "modules":
-            k = "systems"
-
+    for k, vals in reserved.items():
         if k == "systems":
-            note["systems"] = _norm_list(note["systems"] + list(vals))
+            note["systems"] = _norm_list(note["systems"] + vals, "Uc")
         elif k == "roles":
-            note["roles"] = _norm_list(note["roles"] + list(vals))
+            note["roles"] = _norm_list(note["roles"] + vals, "Uc")
         elif k == "threads":
-            note["threads"] = _norm_list(note["threads"] + list(vals))
+            note["threads"] = _norm_list(note["threads"] + vals, "Uc")
         elif k == "flags":
-            # overwrite semantics (last wins), but keep uniqueness within the string
-            note["flags"] = _norm_flags(vals)
+            note["flags"] = _norm_flags(vals)      # last wins
         elif k == "callers":
-            note["callers"] = _parse_callers(vals)
+            note["callers"] = _norm_list(note["callers"] + vals, "U")
         elif k == "assign_type":
-            note["assign_type"] = _parse_assign_type(vals)
-        else:
-            if k not in note["custom"]:
-                note["custom"][k] = []
-            note["custom"][k].extend(list(vals))
+            note["assign_type"] = vals[-1] if vals else ""
 
+def _acc_merge_custom(custom):
+    note = g["note"]
+    for k, vals in custom.items():
+        if k not in note["custom"]:
+            note["custom"][k] = []
+        note["custom"][k].extend(vals)
 
 def _is_doc_line():
     return g["line"].startswith("# doc:")
@@ -315,15 +288,32 @@ def _id_prefix(symbol_type):
 # Normalization / parsing
 # ------------------------------------------------------------
 
-def _norm_list(vals):
+def _norm_list(vals, flags=""):
+    """
+    Normalize a list of strings.
+
+    Flags:
+      U  -> unique (deduplicate, preserve first occurrence)
+      c  -> lowercase
+
+    Order is preserved.
+    """
     seen = set()
     out = []
+
+    do_unique = "U" in flags
+    do_lower  = "c" in flags
+
     for v in vals:
-        lv = v.lower()
-        if lv in seen:
-            continue
-        seen.add(lv)
-        out.append(lv)
+        x = v.lower() if do_lower else v
+
+        if do_unique:
+            if x in seen:
+                continue
+            seen.add(x)
+
+        out.append(x)
+
     return out
 
 
@@ -362,21 +352,6 @@ def _parse_assign_type(vals):
         return ""
     # scalar last-wins
     return list(vals)[-1]
-
-
-def _parse_callers(vals):
-    vals = list(vals)
-    if len(vals) == 0:
-        return "*"
-    if len(vals) == 1:
-        v = vals[0]
-        if v == "*":
-            return "*"
-        if _is_int(v):
-            return int(v)
-        return [v]
-    # many -> list (treat numeric-looking as symbols here)
-    return vals
 
 
 def _is_int(s):

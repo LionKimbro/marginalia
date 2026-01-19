@@ -9,6 +9,7 @@ from . import __version__
 from .scan_command import run_scan_command
 from .index_command import run_index_command
 from .state import g
+from . import state
 from . import io_utils
 from . import paths
 from . import events
@@ -47,9 +48,9 @@ def parse():
     p_scan = sub.add_parser("scan", help="Scan Python source files and generate inventory artifact.")
     p_scan.add_argument("path", nargs="?", default=".", help="File or directory path to scan.")
     p_scan.add_argument("--output", default="inventory.json", help="File to write output to.")
-    p_scan.add_argument("--files", default=None, action="append", default=[],
+    p_scan.add_argument("--files", default=[], action="append",
                         help="Glob pattern restricting which files are scanned. (may be repeated)")
-    p_scan.add_argument("--exclude", default=None, action="append", default=[],
+    p_scan.add_argument("--exclude", default=[], action="append",
                         help="Glob pattern for excluding files or directories. (may be repeated)")
 
     # ----------------------------
@@ -89,6 +90,9 @@ def prepare_summary_dict():
         "errcode": errcode,
         "events": state.events,
     }
+
+    if args.command == "scan":
+        summary["scan"] = {"output": str(paths.path_for("output"))}
 
     return summary
 
@@ -146,10 +150,10 @@ def main():
     # ----------------------------
     # write execution summary
     # ----------------------------
-    events.write_summary_output_file()
+    write_summary_output_file()
 
     if args.print_summary:
-        print_events_output_lines():
+        print_events_output_lines()
 
 
     # ----------------------------

@@ -17,11 +17,13 @@ Non-responsibilities (handled elsewhere):
 - Exit code computation
 """
 
+import os
+
 from pathlib import Path
 
 from .state import db, g
 from .scan import scan_file
-from . import events, flowctl, io_utils, paths
+from . import events, flowctl, db_util, io_utils, paths, discovery
 
 
 # meta: modules=cli,scan callers=cli.main

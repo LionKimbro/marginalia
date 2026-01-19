@@ -36,7 +36,7 @@
     },
     "err": null,
     "level": "error",
-    "msg-template": "#meta parse error -- {g:source_file}:{g:line_num}: {ctx:e}",
+    "msg-template": "#meta parse error -- {g:path}:{g:line_num}\nException: {ctx:e}\n{fn:traceback}",
     "tags": []
   },
   "no-command-specified": {
@@ -75,7 +75,7 @@
     "msg-template": "version {fn:version}",
     "tags": []
   },
-  "unhandeled-exception": {
+  "unhandled-exception": {
     "data-template": {
       "traceback": "{fn:traceback}"
     },

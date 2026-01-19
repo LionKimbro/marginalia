@@ -22,7 +22,7 @@ def new_note():
         "systems": [],
         "roles": [],
         "threads": [],
-        "callers": "*",
+        "callers": [],
         "flags": "",
         "custom": {},
 

@@ -177,7 +177,8 @@
           "required": true,
           "default": [],
           "unique_items": true,
-          "semantics": "Inventory IDs of symbols lexically nested within this item (module → classes/functions/vars; class → methods/vars; function → nested defs). This is a structural overlay (lexical containment), not a call graph."
+          "semantics": "Inventory IDs of symbols lexically nested within this item (module → classes/functions/vars; class → methods/vars; function → nested defs). This is a structural overlay (lexical containment), not a call graph.",
+          "status": "UNIMPLEMENTED -- has default value, but is not populated by marginalia yet"
         },
         "assign_type": {
           "type": "string",

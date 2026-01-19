@@ -4,7 +4,7 @@ import json
 from .errors import UsageError, MetaParseError, StrictFailure, IoFailure
 from .io_utils import write_json, stderr, dump_json
 from .indexes import build_indexes
-from .item_shape import validate_inventory_item_strict
+# from .node_shape import validate_inventory_item_strict
 from .state import db, g
 
 

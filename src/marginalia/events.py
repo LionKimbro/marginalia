@@ -112,6 +112,7 @@ def append_event(kind, context=None):
         context = {}
     
     if kind not in runtime.EVENT_KINDS:
+        print(kind, runtime.EVENT_KINDS)
         raise KeyError(f"Unknown event kind: {kind}")
 
     spec = runtime.EVENT_KINDS[kind]

@@ -22,30 +22,58 @@ KEY_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 VALUE_RE = re.compile(r"^[^\s]+$")
 
 
-RESERVED = {"modules", "threads", "callers", "flags"}
+RESERVED = {
+    "systems",
+    "roles",
+    "threads",
+    "callers",
+    "flags",
+    "assign_type",
+}
 
 
 # meta: modules=scan callers=scan.scan_file
 def is_meta_line(line):
     return META_RE.match(line) is not None
 
+
 # meta: modules=scan callers=scan.scan_file
 def parse_meta_line(line):
+    """
+    Parse a '# meta:' comment line into structural tokens and key/value groups.
+
+    Returns:
+      {
+        "anchor": str | None,
+        "item_id": str | None,
+        "reserved": dict[str, list[str]],
+        "custom": dict[str, list[str]],
+      }
+    """
     m = META_RE.match(line)
     if not m:
         raise MetaParseError("not a meta line")
 
     body = (m.group(1) or "").strip()
     if not body:
-        # valid but empty meta comment
-        return {"anchor": None, "kv": {}}
+        return {
+            "anchor": None,
+            "item_id": None,
+            "reserved": {},
+            "custom": {},
+        }
 
     parts = body.split()
+
     anchor = None
     item_id = None
-    kv = {}
+    reserved = {}
+    custom = {}
 
     for part in parts:
+        # -------------------------
+        # anchor token
+        # -------------------------
         if part.startswith("@"):
             am = ANCHOR_TOKEN_RE.match(part)
             if not am:
@@ -53,16 +81,23 @@ def parse_meta_line(line):
             anchor = am.group(1)
             continue
 
+        # -------------------------
+        # id token
+        # -------------------------
         if part.startswith("#"):
             if not part[1:]:
                 raise MetaParseError("empty id token")
             item_id = part
             continue
 
+        # -------------------------
+        # key=value
+        # -------------------------
         if "=" not in part:
             raise MetaParseError(f"bad entry (missing '='): {part}")
 
         k, v = part.split("=", 1)
+
         if not KEY_RE.match(k):
             raise MetaParseError(f"bad key: {k}")
 
@@ -76,31 +111,39 @@ def parse_meta_line(line):
                 if not VALUE_RE.match(x):
                     raise MetaParseError(f"bad value: {x} in {part}")
 
-        kv[k] = vals  # last wins
+        if k in RESERVED:
+            reserved[k] = list(vals)   # last wins
+        else:
+            custom[k] = list(vals)     # last wins
 
-    return {"anchor": anchor, "item_id": item_id, "kv": kv}
+    return {
+        "anchor": anchor,
+        "item_id": item_id,
+        "reserved": reserved,
+        "custom": custom,
+    }
+
 
 # meta: modules=scan callers=scan.scan_file
 def find_bindable(line):
-    """Identifying a (symbol, "function/class/data"), in a subsequent line."""
-    # returns (symbol, symbol_type) or (None, None)
+    """
+    Identify a bindable symbol declaration.
+
+    Returns:
+      (symbol, symbol_type) or (None, None)
+
+    symbol_type ∈ {"function", "class", "var"}
+    """
     m = DEF_RE.match(line)
     if m:
         return m.group(2), "function"
+
     m = CLASS_RE.match(line)
     if m:
         return m.group(1), "class"
+
     m = DATA_RE.match(line)
     if m:
-        return m.group(1), "data"
-    return None, None
+        return m.group(1), "var"
 
-# meta: modules=scan callers=scan.scan_file
-def should_skip_for_binding(line):
-    if BLANK_RE.match(line):
-        return True
-    if COMMENT_RE.match(line) and not is_meta_line(line):
-        return True
-    if DECORATOR_RE.match(line):
-        return True
-    return False
+    return None, None

@@ -6,6 +6,8 @@ import tempfile
 import sys
 import traceback
 
+from . import state
+
 
 # meta: modules=io callers=*
 def stderr(msg=None, exc=None):
@@ -47,17 +49,15 @@ def write_text_atomic(p, text):
         raise
 
 # meta: modules=io callers=*
-def dump_json(obj, pretty=False, compact=False):
-    if pretty and compact:
-        raise ValueError("cannot combine pretty and compact")
-
+def dump_json(obj):
+    pretty = state.g["args"].json == "pretty"
     if pretty:
         return json.dumps(obj, indent=2, ensure_ascii=False)
-
-    # compact is the default behavior in the contract (and in practice)
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+    else:
+        return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
 
 # meta: modules=io callers=*
-def write_json(p, obj, pretty=False, compact=False):
-    s = dump_json(obj, pretty=pretty, compact=compact)
+def write_json(p, obj):
+    pretty = state.g["args"].json == "pretty"
+    s = dump_json(obj)
     write_text_atomic(p, s + ("\n" if pretty else ""))
