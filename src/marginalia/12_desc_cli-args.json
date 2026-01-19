@@ -1,0 +1,46 @@
+{
+  "version": {
+    "type": "bool",
+    "desc": "If true, print Marginalia version and exit."
+  },
+  "summary": {
+    "type": "string|null",
+    "desc": "Path of execution summary file to write."
+  },
+  "print_summary": {
+    "type": "bool",
+    "desc": "If true, print execution summary JSON to stdout after completion."
+  },
+  "output": {
+    "type": "string|null",
+    "desc": "File path to write primary command output to."
+  },
+  "fail": {
+    "type": "enum('warn','halt')",
+    "desc": "Failure handling policy when errors are encountered."
+  },
+  "json": {
+    "type": "enum('pretty','compact')",
+    "desc": "JSON formatting style for output artifacts."
+  },
+  "command": {
+    "type": "enum('scan','index')|null",
+    "desc": "Selected subcommand to execute."
+  },
+  "path": {
+    "type": "string",
+    "desc": "File or directory path to scan (scan command only)."
+  },
+  "files": {
+    "type": "string[]|null",
+    "desc": "Glob pattern restricting which files are scanned (scan command only)."
+  },
+  "exclude": {
+    "type": "string[]|null",
+    "desc": "Glob pattern for excluding files or directories (scan command only)."
+  },
+  "inventory_path": {
+    "type": "string|null",
+    "desc": "Path to Marginalia inventory JSON file (index command only)."
+  }
+}

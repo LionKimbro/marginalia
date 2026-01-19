@@ -21,9 +21,10 @@ import re
 # ============================================================
 
 TOKEN_RE = re.compile(r"""
-    (\{g:([a-zA-Z_][a-zA-Z0-9_]*)\})   |   # {g:name}
+    (\{g:([a-zA-Z_][a-zA-Z0-9_]*)\})     |  # {g:name}
     (\{args:([a-zA-Z_][a-zA-Z0-9_]*)\})  |  # {args:attr}
-    (\{fn:([a-zA-Z_][a-zA-Z0-9_]*)\})      # {fn:name}
+    (\{fn:([a-zA-Z_][a-zA-Z0-9_]*)\})    |  # {fn:name}
+    (\{ctx:([a-zA-Z_][a-zA-Z0-9_]*)\})      # {ctx:key}
 """, re.VERBOSE)
 
 def _load_named_function(path):
@@ -32,7 +33,7 @@ def _load_named_function(path):
     return getattr(m, name)
 
 
-def _resolve_tokens(s):
+def _resolve_tokens(s, context):
     if not s:
         return s
 
@@ -65,6 +66,11 @@ def _resolve_tokens(s):
                 out.append(str(fn()))
             except Exception as e:
                 out.append(f"<error calling {name}: {e}>")
+
+        elif m.group(8):  # ctx value
+            name = m.group(8)
+            val = context.get(name) if context else None
+            out.append("" if val is None else str(val))
         
         pos = end
 
@@ -75,19 +81,19 @@ def _resolve_tokens(s):
     return "".join(out)
 
 
-def _resolve_data(obj):
+def _resolve_data(obj, context):
     """
     Walk data-template and resolve tokens in strings.
     """
 
     if isinstance(obj, str):
-        return _resolve_tokens(obj)
+        return _resolve_tokens(obj, context)
 
     if isinstance(obj, list):
-        return [_resolve_data(x) for x in obj]
+        return [_resolve_data(x, context) for x in obj]
 
     if isinstance(obj, dict):
-        return {k: _resolve_data(v) for k, v in obj.items()}
+        return {k: _resolve_data(v, context) for k, v in obj.items()}
 
     return obj
 
@@ -96,11 +102,15 @@ def _resolve_data(obj):
 # EVENT EMISSION
 # ============================================================
 
-def append_event(kind):
+# meta: #events-1 systems=events roles=submission callers=*
+def append_event(kind, context=None):
     """
     Emit event of given kind using catalog definition.
     """
 
+    if context is None:
+        context = {}
+    
     if kind not in runtime.EVENT_KINDS:
         raise KeyError(f"Unknown event kind: {kind}")
 
@@ -111,22 +121,23 @@ def append_event(kind):
         "kind": kind,
         "tags": list(spec["tags"]),
         "err": spec["err"],
-        "msg": _resolve_tokens(spec["msg-template"]),
-        "data": _resolve_data(spec["data-template"]),
+        "msg": _resolve_tokens(spec["msg-template"], context),
+        "data": _resolve_data(spec["data-template"], context),
     }
 
+    state.events.append(evt)
+    
     # ---- failure policy hook ----
-
+    
     if evt["level"] == "error" and g["args"].fail == "halt":
         state.g["stop_requested"] = True
-
-    state.events.append(evt)
 
 
 # ============================================================
 # PROGRAM ERROR CODE CALCULATION
 # ============================================================
 
+# meta: #events-2 systems=cli,events.examination roles=calculate callers=#cli-2,#main
 def calculate_errcode():
     """
     Compute exit code from events + policy.
@@ -188,6 +199,7 @@ def calculate_errcode():
 # SUMMARY PRESENTATION
 # ============================================================
 
+# meta: #events-3 systems=cli,events.examination roles=output callers=#cli-4
 def generate_events_presentation_lines():
     """
     Generate human-readable summary lines from recorded events.

@@ -1,0 +1,322 @@
+{
+  "marginalia_note_spec": {
+    "doc_details": {
+      "spec_id": "marginalia.note-spec.v0.1",
+      "version": "0.1",
+      "version_creation_date": "2026-01-19",
+      "assumes_meta_spec": "marginalia.meta.v0.1",
+      "purpose": "Define the canonical data model for a Marginalia note (the common item record).",
+      "scope": "Defines note fields, semantics, invariants, and identity rules. Includes a short appendix for inventory.json container format. Does not define indexes or other projections."
+    },
+    "wire_format_rules": {
+      "flat_object": true,
+      "flat_object_semantics": "Serialized notes are single-layer JSON objects (one dictionary layer). Conceptual groupings in this spec do not appear as nested objects within note records."
+    },
+    "field_groups": {
+      "identity_fields": [
+        "id",
+        "symbol",
+        "symbol_type"
+      ],
+      "source_context_fields": [
+        "source_file",
+        "line_number",
+        "raw"
+      ],
+      "semantic_annotation_fields": [
+        "systems",
+        "roles",
+        "threads",
+        "callers",
+        "flags",
+        "custom",
+        "assign_type"
+      ],
+      "structural_overlay_fields": [
+        "nests"
+      ],
+      "documentation_fields": [
+        "doc"
+      ]
+    },
+    "note_object": {
+      "shape_name": "note",
+      "description": "A note is the canonical record for a symbol (module/function/class/var) or a declared anchor. Notes are the atoms stored and delivered via inventory.json.",
+      "fields": {
+        "id": {
+          "type": "string",
+          "required": true,
+          "semantics": "Globally unique identifier for this note. Human-declared anchors begin with '#'. Generated structural IDs use prefixes such as 'mod:', 'fn:', 'class:', 'var:', 'anchor:'. Identity is defined by id; other fields are attributes.",
+          "constraints": {
+            "non_empty": true,
+            "unique_scope": "inventory"
+          }
+        },
+        "symbol": {
+          "type": "string",
+          "required": true,
+          "semantics": "Fully-qualified symbolic name of the item within the codebase. For modules this is the module path; for functions/classes/vars this includes module path and enclosing scopes (e.g. 'pkg.mod.Class.method'); for anchors this is the declared anchor name. Primary display name of the item.",
+          "constraints": {
+            "non_empty": true
+          }
+        },
+        "symbol_type": {
+          "type": "string",
+          "required": true,
+          "allowed": [
+            "module",
+            "function",
+            "class",
+            "var",
+            "anchor"
+          ],
+          "semantics": {
+            "module": "A Python source module (file-level unit).",
+            "function": "A Python function definition.",
+            "class": "A Python class definition.",
+            "var": "A Python-level name binding that assigns a value to an identifier.",
+            "anchor": "A meta-declared symbol that may not correspond to a Python identifier binding."
+          }
+        },
+        "source_file": {
+          "type": "string",
+          "required": true,
+          "semantics": "Path of the Python source file that declares the symbol (or anchor).",
+          "constraints": {
+            "non_empty": true
+          },
+          "UNRESOLVED": {
+            "noted": "2026-01-19",
+            "task": "We need to figure out if this can be relative, or if it must be absolute; If relative, we need to keep track of the base-path in any container."
+          }
+        },
+        "line_number": {
+          "type": "integer",
+          "required": true,
+          "semantics": "1-based line number locating the symbol declaration (or anchor declaration) in source_file.",
+          "constraints": {
+            "minimum": 1
+          }
+        },
+        "raw": {
+          "type": "array<string>",
+          "required": true,
+          "semantics": "Exact original '# meta:' and '# doc:' comment lines associated with this note, including the leading '#', preserving all content (including any @anchor token). Trailing newline removed. Ordering is the order encountered in source.",
+          "constraints": {
+            "items_non_empty": true
+          },
+          "excludes": [
+            "python_docstrings"
+          ]
+        },
+        "systems": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "unique_items": true,
+          "normalization": "lowercase",
+          "case_sensitivity": "insensitive",
+          "semantics": "Architectural systems/subsystems this item participates in (not Python modules). Hierarchical names using dots are allowed (e.g. 'mqtt.transport')."
+        },
+        "roles": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "unique_items": true,
+          "normalization": "lowercase",
+          "case_sensitivity": "insensitive",
+          "semantics": "Architectural roles this item fulfills (e.g. 'engine', 'adapter', 'facade', 'dispatcher', 'mainloop')."
+        },
+        "threads": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "unique_items": true,
+          "normalization": "lowercase",
+          "case_sensitivity": "insensitive",
+          "semantics": "Execution or architectural threads of activity this item participates in. Interpretation is project-defined; values are normalized but not semantically validated."
+        },
+        "callers": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "invariant": "All caller declarations are strings; semantics are derived by parsing tokens.",
+          "semantics": {
+            "symbol": "Explicit calling symbol.",
+            "integer-string": "Expected number of distinct call sites.",
+            "\"*\"": "Unbounded or general-purpose callers."
+          },
+          "allowed_forms": {
+            "array<string>": {
+              "unique_items": true,
+              "items_non_empty": true
+            }
+          }
+        },
+        "flags": {
+          "type": "string",
+          "required": true,
+          "default": "",
+          "semantics": "A string interpreted as a set of single-character flags; each character represents one flag.",
+          "constraints": {
+            "unique_characters": true
+          }
+        },
+        "custom": {
+          "type": "object",
+          "required": true,
+          "default": {},
+          "value_type": "array<string>",
+          "semantics": "Contains all parsed meta keys not recognized as reserved keys (systems, roles, threads, callers, flags, assign_type). Each key maps to an array of string values. Unknown keys are preserved exactly (except for any normalization rules applied to values by the implementation).",
+          "constraints": {
+            "keys_non_empty": true
+          }
+        },
+        "nests": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "unique_items": true,
+          "semantics": "Inventory IDs of symbols lexically nested within this item (module → classes/functions/vars; class → methods/vars; function → nested defs). This is a structural overlay (lexical containment), not a call graph."
+        },
+        "assign_type": {
+          "type": "string",
+          "required": true,
+          "default": "",
+          "semantics": "Declared expected type or role of a variable binding, especially for globals/registries (e.g. 'dict[str, Service]', 'MQTTConnection', 'WorkerState'). Informational; not type-checked."
+        },
+        "doc": {
+          "type": "array<string>",
+          "required": true,
+          "default": [],
+          "semantics": "Human-facing documentation text associated with this item, derived from Python docstrings and/or '# doc:' lines. Consumers should treat this as display-ready paragraphs/lines; interpretation is presentation-defined.",
+          "constraints": {
+            "items_non_empty": true
+          }
+        }
+      },
+      "serialization_invariants": [
+        "All fields listed as required are always present in every serialized note.",
+        "No field value is ever null.",
+        "Empty collections are represented as [] or {}.",
+        "Empty textual fields are represented as empty strings.",
+        "Notes are flat objects (no nested grouping objects).",
+        "Unknown/unreserved meta keys are preserved in note.custom and are never discarded by compliant implementations."
+      ]
+    },
+    "identity_model": {
+      "identity_note": "Identity is defined by note.id. note.symbol, note.source_file, and note.line_number are attributes used for display, provenance, and (when needed) deterministic identity generation.",
+      "id_kinds": {
+        "explicit_anchor_id": {
+          "description": "A human-declared anchor begins with '#'. When present, it is the canonical base identity for the anchored note."
+        },
+        "generated_structural_id": {
+          "description": "If no explicit anchor id is supplied, the implementation generates a deterministic id from symbol + source context.",
+          "prefix_conventions": {
+            "mod:": {
+              "maps_to_symbol_type": "module",
+              "semantics": "Generated module identity."
+            },
+            "fn:": {
+              "maps_to_symbol_type": "function",
+              "semantics": "Generated function identity."
+            },
+            "class:": {
+              "maps_to_symbol_type": "class",
+              "semantics": "Generated class identity."
+            },
+            "var:": {
+              "maps_to_symbol_type": "var",
+              "semantics": "Generated variable-binding identity."
+            },
+            "anchor:": {
+              "maps_to_symbol_type": "anchor",
+              "semantics": "Generated anchor identity (used only if no human '#id' is supplied but an anchor note is created)."
+            }
+          }
+        }
+      },
+      "id_generation_rules": {
+        "priority_order": [
+          "use_explicit_anchor_id_if_present",
+          "else_generate_structural_id"
+        ],
+        "structural_id_components": {
+          "required_components": [
+            "prefix_from_symbol_type",
+            "module_path_or_symbol_path",
+            "source_file",
+            "lexical_locator"
+          ],
+          "lexical_locator_options": [
+            "line_number",
+            "source_order_ordinal_within_file_for_that_symbol_type"
+          ],
+          "semantics": "Generated IDs must be reproducible across runs on unchanged source. Implementations may choose the lexical locator strategy, but must be deterministic and documented."
+        },
+        "stability_expectations": [
+          "If symbol and its declaration location do not change, the generated id should remain unchanged across runs.",
+          "If a symbol moves within a file (line number changes) and the implementation uses line_number as locator, id may change; implementations may prefer an ordinal strategy to reduce churn.",
+          "If a file is renamed or module path changes, generated id may change unless an explicit anchor is provided."
+        ],
+        "collision_avoidance": {
+          "requirement": "No two notes in the same inventory may share the same id.",
+          "strategy": "If a generated id collides, the implementation must deterministically disambiguate by extending the lexical_locator (e.g. add a serial suffix or a stronger locator) while preserving repeatability across runs.",
+          "disambiguation_rules": [
+            "Disambiguation must be stable given the same source tree and traversal order.",
+            "Disambiguation must not require consumer participation; consumers treat id as opaque."
+          ]
+        }
+      }
+    },
+    "reserved_key_policy": {
+      "reserved_keys": [
+        "id",
+        "symbol",
+        "symbol_type",
+        "source_file",
+        "line_number",
+        "raw",
+        "systems",
+        "roles",
+        "threads",
+        "callers",
+        "flags",
+        "custom",
+        "nests",
+        "assign_type",
+        "doc"
+      ],
+      "unknown_keys_policy": "Unknown (non-reserved) meta keys must not be emitted as top-level fields in the note object. They must be preserved under note.custom as arrays of strings.",
+      "future_reserved_keys_policy": "If later versions reserve additional keys, older inventories remain valid; converters may migrate keys into or out of custom as needed."
+    },
+    "appendix_inventory_format": {
+      "name": "inventory.json",
+      "purpose": "Canonical container format for delivering/storing note records.",
+      "filename_convention": "inventory.json",
+      "structure": {
+        "type": "array",
+        "items": {
+          "$ref": "#/marginalia_note_spec/note_object"
+        }
+      },
+      "ordering": {
+        "default": "source order",
+        "semantics": "Notes are typically emitted in the order encountered during source traversal. Consumers must not rely on ordering for identity."
+      },
+      "semantics": [
+        "inventory.json is a flat list of notes.",
+        "All notes in inventory.json must conform to this spec's note_object shape and invariants."
+      ],
+      "container_invariants": [
+        "All note.id values are unique within the inventory."
+      ]
+    },
+    "non_goals": [
+      "Defining any index or projection formats (by-id, by-symbol, etc.).",
+      "Semantic validation of user-provided meta values (beyond basic type/shape constraints).",
+      "Defining a call graph, dataflow graph, or runtime behavior model.",
+      "Deduplication across files or cross-inventory merge policies."
+    ]
+  }
+}

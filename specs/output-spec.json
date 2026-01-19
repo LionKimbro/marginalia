@@ -37,8 +37,8 @@
           "type": "integer"
         },
         "raw": {
-          "type": "string",
-          "semantics": "Exact original meta comment line, including leading # and all content (including any @anchor token), with trailing newline removed."
+          "type": "array", 
+          "semantics": "Exact original # meta and # doc comment lines, including leading # and all content (including any @anchor token), with trailing newline removed." 
         },
         "systems": {
           "type": "array",
@@ -130,7 +130,7 @@
           "semantics": "Declared expected type or role of a variable binding, especially for global or registry variables (e.g. 'dict[str, Service]', 'MQTTConnection', 'WorkerState'). Informational, not type-checked."
         },
         "doc": {
-          "type": "string",
+          "type": "array",
           "semantics": "Human-written documentation text associated with this item, derived from Python docstrings or '# doc:' meta lines."
         }
       },

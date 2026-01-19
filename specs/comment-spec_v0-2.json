@@ -75,31 +75,67 @@
       }
     ],
     "parsing_rules": {
-      "global": {
-        "multiple_entries_allowed": true,
-        "unknown_keys_allowed": true,
-        "duplicate_keys": "last_wins",
-        "whitespace": "ignored_around_separators",
-        "ordering": "insignificant",
-        "normalization": {
-          "systems": "lowercase",
-          "roles": "lowercase",
-          "threads": "lowercase",
-          "custom": "preserve"
+      "model": "streaming_accumulator",
+      "accumulator": {
+        "buffers": [
+          "meta",
+          "doc"
+        ],
+        "initial_state": "empty",
+        "on_comment_line": {
+          "meta": "merge_into_meta_buffer",
+          "doc": "append_to_doc_buffer"
+        },
+        "merge_rules": {
+          "sets_and_arrays": "extend",
+          "scalars": "overwrite",
+          "conflicts": "last_wins"
         }
       },
-      "channels": {
-        "doc": {
-          "association": "same_as_meta_binding",
-          "accumulation": "adjacent_doc_lines",
-          "termination": "first_non_doc_non_blank_line",
-          "ordering": "source_order",
-          "merge_with_docstring": {
-            "enabled": true,
-            "precedence": "meta_over_docstring",
-            "separator": "\n\n"
-          }
+      "drain_events": {
+        "explicit_anchor": {
+          "trigger": "meta line containing @anchor",
+          "behavior": "flush_accumulator_into_named_symbol",
+          "symbol_creation": "create_if_missing",
+          "after_flush": "clear_accumulator"
+        },
+        "bindable_symbol": {
+          "trigger": "function | class | var | module definition",
+          "behavior": "flush_accumulator_into_symbol",
+          "after_flush": "clear_accumulator"
         }
+      },
+      "ignored_lines": {
+        "description": "Lines that are neither comment channels nor bindable symbols do not affect the accumulator."
+      },
+      "end_of_file": {
+        "if_accumulator_not_empty": "error",
+        "error_class": "orphaned_metadata",
+        "fail_policy_interaction": {
+          "halt": "raise_error_and_exit",
+          "warn": "emit_warning_and_discard"
+        }
+      },
+      "docstring_enrichment": {
+        "pass": "post_scan_ast",
+        "applies_to": [
+          "function",
+          "class"
+        ],
+        "source": "python_ast",
+        "extraction_method": "ast.get_docstring",
+        "merge_target": "item.doc",
+        "merge_behavior": {
+          "when_doc_exists": "append",
+          "when_doc_missing": "set",
+          "precedence": "meta_over_docstring",
+          "separator": "\n\n"
+        },
+        "matching_strategy": {
+          "primary": "source_file_and_line_range",
+          "fallback": "qualified_symbol_name"
+        },
+        "notes": "Docstrings are not available to the streaming scanner and are integrated after initial inventory construction."
       }
     },
     "binding": {
@@ -110,10 +146,14 @@
         "module",
         "anchor"
       ],
-      "scope_limit": "next_bindable_symbol",
+      "scope_limit": "until_next_drain_event",
       "anchor_binding": {
         "requires_explicit_anchor": true,
-        "implicit_binding": false
+        "creates_symbol": true
+      },
+      "symbol_binding": {
+        "requires_syntax_detection": true,
+        "creates_symbol": false
       },
       "id_binding": {
         "optional": true,
@@ -192,7 +232,19 @@
           "# doc: meta lines",
           "Python docstrings"
         ],
-        "semantics": "Merged into inventory item documentation field."
+        "semantics": "Merged into inventory item documentation field.",
+        "docstring_scope": {
+          "allowed_symbol_types": [
+            "function",
+            "class"
+          ],
+          "disallowed_symbol_types": [
+            "var",
+            "anchor",
+            "module"
+          ],
+          "semantics": "Docstrings are only collected from Python syntactic constructs that support them."
+        }
       }
     },
     "custom_keys": {
@@ -223,7 +275,7 @@
       "callers": "From reserved key callers",
       "flags": "From reserved key flags",
       "assign_type": "From reserved key assign_type",
-      "doc": "Concatenation of accumulated '# doc:' comment lines and Python docstrings per parsing_rules.channels.doc.",
+      "doc": "Concatenation of accumulated '# doc:' comment lines from streaming scan and docstrings merged during post-scan AST enrichment per parsing_rules.docstring_enrichment.",
       "custom": "All non-reserved keys mapped to arrays of strings"
     },
     "non_goals": [

@@ -20,7 +20,7 @@ from . import runtime
 # CLI Parsing
 # ============================================================
 
-# meta: modules=cli callers=cli.main
+# meta: #cli-1 systems=cli_invocation.config roles=argument-parsing callers=main
 def parse():
     p = argparse.ArgumentParser(
         prog="marginalia",
@@ -34,7 +34,6 @@ def parse():
     p.add_argument("--summary", default=None, help="Path of execution summary file to write.")
     p.add_argument("--print-summary", action="store_true",
                    help="Print execution summary JSON to stdout after completion.")
-    p_scan.add_argument("--output", default=None, help="File to write output to.")
     p.add_argument("--fail", choices=["warn", "halt"], default="halt",
                    help="Failure handling policy when errors are encountered.")
     p.add_argument("--json", choices=["pretty", "compact"], default="pretty",
@@ -47,8 +46,11 @@ def parse():
     # ----------------------------
     p_scan = sub.add_parser("scan", help="Scan Python source files and generate inventory artifact.")
     p_scan.add_argument("path", nargs="?", default=".", help="File or directory path to scan.")
-    p_scan.add_argument("--files", default=None, help="Glob pattern restricting which files are scanned.")
-    p_scan.add_argument("--exclude", default=None, help="Glob pattern for excluding files or directories.")
+    p_scan.add_argument("--output", default="inventory.json", help="File to write output to.")
+    p_scan.add_argument("--files", default=None, action="append", default=[],
+                        help="Glob pattern restricting which files are scanned. (may be repeated)")
+    p_scan.add_argument("--exclude", default=None, action="append", default=[],
+                        help="Glob pattern for excluding files or directories. (may be repeated)")
 
     # ----------------------------
     # index
@@ -56,6 +58,7 @@ def parse():
     p_idx = sub.add_parser("index", help="Generate indexes from an existing inventory artifact.")
     p_idx.add_argument("inventory_path", nargs="?", default=None,
                        help="Path to Marginalia inventory JSON file.")
+    p_idx.add_argument("--output", default="index.json", help="File to write output to.")
 
     return p.parse_args()
 
@@ -64,6 +67,7 @@ def parse():
 # Execution Summary
 # ============================================================
 
+# meta: #cli-2 systems=cli_invocation,events.summary roles=gather callers=write_summary_output_file
 def prepare_summary_dict():
     """
     Construct execution summary object from global state and events.
@@ -88,7 +92,7 @@ def prepare_summary_dict():
 
     return summary
 
-
+# meta: #cli-3 systems=cli_invocation,events.summary roles=io callers=main
 def write_summary_output_file():
     """
     Write execution summary JSON to standard summary path.
@@ -97,7 +101,7 @@ def write_summary_output_file():
     summary_path = paths.path_for("summary", "J")
     io_utils.write_json(summary_path, summary)
 
-
+# meta: #cli-4 systems=cli_invocation,events.summary roles=presentation callers=main
 def print_events_output_lines():
     """
     Print human-readable summary presentation lines to stdout.
@@ -110,7 +114,7 @@ def print_events_output_lines():
 # Main Dispatcher
 # ============================================================
 
-# meta: modules=cli callers=pyproject.toml
+# meta: #main systems=cli_invocation roles=orchestration callers=1
 def main():
     runtime.load_runtime_execution_data()
     

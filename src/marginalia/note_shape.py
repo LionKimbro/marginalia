@@ -1,31 +1,36 @@
-# marginalia/item_shape.py
+# marginalia/note_shape.py
 from .errors import MetaParseError
 from .state import g
 
 
-# meta: modules=scan writers=scan.scan_file callers=scan.scan_file
-def new_item():
+# meta: #new-note modules=scan writers=scan.scan_file,db callers=scan.scan_file
+def new_note():
     """
     Initialize a new item-under-construction.
 
     The item dict itself is the assembly surface; fields are populated
     incrementally and are guaranteed valid by construction.
     """
-    g["item"] = item = {
-        "id": None,            # resolved explicitly or derived later
-        "symbol": None,
-        "symbol_type": None,
-        "source_file": None,   # string, relative to g["base_path"]
-        "line_number": None,
-        "raw": None,           # raw "# meta: ..." line
-        "modules": [],
+    g["note"] = note = {
+        "id": None,
+        "symbol": "",
+        "symbol_type": "",
+        "source_file": "",
+        "line_number": 0,
+        "raw": [],
+
+        "systems": [],
+        "roles": [],
         "threads": [],
         "callers": "*",
         "flags": "",
         "custom": {},
-    }
-    return item
 
+        "nests": [],
+        "assign_type": "",
+        "doc": [],
+    }
+    return note
 
 
 # meta: modules=db callers=indexes_command._run_indexes_command

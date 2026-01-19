@@ -2,7 +2,8 @@
 
 # Global canonical inventory.
 
-# meta: #db modules=state,db writers=scan_command._run_scan_command readers=*
+# meta: #db modules=state,db writers=unknown readers=*
+# doc: database of margin notes, aka just "notes"
 db = []
 
 # global scalar data
@@ -28,15 +29,17 @@ g = {
     "line": None,
     "finished_reading_file": None,
 
-    # meta: #g_item modules=state @g_item writers=scan.scan_file,item_shape.new_item readers=*
+    # meta: #g_item modules=state @g_note writers=scan.scan_file,item_shape.new_item readers=*
     # meta: #g_include_globs modules=state @g_include_globs writers=scan_command._run_scan_command readers=*
     # meta: #g_exclude_dirs modules=state @g_exclude_dirs writers=scan_command._run_scan_command readers=*
     # meta: #g_base_path modules=state @g_base_path writers=scan_command._run_scan_command readers=*
+    # meta: #g_output_path modules=state,db @g_output_path writers=scan_command._initialize_scan_state readers=*
     # meta: #g_formatting_options modules=state @g_formatting_options writers=cli.main readers=*
-    "item": None,
+    "note": None,
     "include_globs": None,
-    "exclude_dirs": None,
+    "exclude_globs": None,
     "base_path": None,
+    "output_path": None,
     "formatting_options": None,
 
     # meta: #g_stop_requested modules=state @g_stop_requested writers=events readers=*

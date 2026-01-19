@@ -15,33 +15,37 @@ def establish_include_and_exclude():
     args = g["args"]
     
     # include globs: override or default
-    if args.files:
-        g["include_globs"] = {args.files}
-    else:
-        g["include_globs"] = set(DEFAULT_INCLUDE)
+    g["include_globs"] = set(args.files
+                             if args.files
+                             else DEFAULT_INCLUDE)
 
     # exclude dirs: override or default
-    if getattr(args, "exclude_dirs", None):
-        g["exclude_dirs"] = set(args.exclude_dirs)
-    else:
-        g["exclude_dirs"] = set(DEFAULT_EXCLUDE_DIRS)
+    g["exclude_globs"] = set(args.exclude_globs
+                             if args.exclude_globs
+                             else DEFAULT_EXCLUDE_DIRS)
 
 
 # meta: modules=scan callers=scan_command._run_scan_command
 def iter_source_files():
-    root = Path(g["args"].path)
+    root = g["base_path"]
     yield from _iter_source_files(root)
 
 def _iter_source_files(p: Path):
+    args = g["args"]
+
+    name = p.name
+
+    # exclude applies to both files and directories
+    if any(fnmatch.fnmatch(name, pat) for pat in g["exclude_globs"]:
+        return
+    
     if p.is_dir():
-        if p.name in g["exclude_dirs"]:
-            return
         for child in p.iterdir():
             yield from _iter_source_files(child)
         return
 
     if p.is_file():
-        if any(p.match(glob) for glob in g["include_globs"]):
+        if any(fnmatch.fnmatch(name, pat) for pat in g["include_globs"]):
             yield p.resolve()
 
 

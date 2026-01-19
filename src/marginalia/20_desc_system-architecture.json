@@ -1,0 +1,469 @@
+{
+  "system": {
+    "name": "Marginalia",
+    "purpose": "Static analysis pipeline for extracting structured architectural and semantic metadata from Python source trees and emitting normalized inventories and execution narratives."
+  },
+  "subsystems": {
+    "cli_invocation": {
+      "role": "Human-facing entry and argument handling",
+      "responsibilities": [
+        "parse command line arguments",
+        "register args into global state",
+        "handle version/help early exits",
+        "initiate command dispatch",
+        "trigger summary emission",
+        "orchestrate outer execution"
+      ],
+      "modules": [
+        "__main__.py",
+        "cli.py"
+      ],
+      "outputs_to": [
+        "command_orchestration",
+        "io_sinks"
+      ]
+    },
+    "command_orchestration.scan": {
+      "role": "Top-level coordination of source scanning execution",
+      "responsibilities": [
+        "initialize scan pipeline",
+        "invoke source discovery and file scanning",
+        "coordinate scan-time exception handling",
+        "finalize scan results into global inventory"
+      ],
+      "modules": [
+        "scan_command.py"
+      ],
+      "inputs_from": [
+        "cli_invocation",
+        "runtime_environment"
+      ],
+      "outputs_to": [
+        "source_discovery",
+        "scan_engine",
+        "event_narration",
+        "control_flow_policy",
+        "global_state"
+      ]
+    },
+    "command_orchestration.index": {
+      "role": "Top-level coordination of index construction execution",
+      "responsibilities": [
+        "initialize index processing pipeline",
+        "load inventory data for indexing",
+        "invoke index construction routines",
+        "coordinate index-time exception handling"
+      ],
+      "modules": [
+        "index_command.py"
+      ],
+      "inputs_from": [
+        "cli_invocation",
+        "runtime_environment",
+        "global_state"
+      ],
+      "outputs_to": [
+        "index_processing",
+        "event_narration",
+        "control_flow_policy",
+        "io_sinks"
+      ]
+    },
+    "db": {
+      "role": "Manipulate database (db)",
+      "responsibilities": [
+        "ensure uniqueness of db items"
+      ],
+      "modules": [
+        "db_util.py"
+      ],
+      "inputs_from": [
+        "command_orchestration.scan"
+      ],
+      "outputs_to": [
+        "command_orchestration.scan"
+      ]
+    },
+    "runtime_environment": {
+      "role": "Load and prepare runtime JSON context and datasets",
+      "responsibilities": [
+        "load configuration files",
+        "load prior run inventories or caches",
+        "merge runtime state inputs"
+      ],
+      "modules": [
+        "runtime.py"
+      ],
+      "outputs_to": [
+        "command_orchestration",
+        "index_processing",
+        "global_state"
+      ]
+    },
+    "path_resolution": {
+      "role": "Canonical construction of filesystem paths for all outputs and caches",
+      "responsibilities": [
+        "define directory topology",
+        "resolve filenames for artifacts",
+        "centralize path policy"
+      ],
+      "modules": [
+        "paths.py"
+      ],
+      "inputs_from": [
+        "cli_invocation",
+        "command_orchestration"
+      ],
+      "outputs_to": [
+        "io_sinks",
+        "index_processing"
+      ]
+    },
+    "source_discovery": {
+      "role": "Determine which source files are eligible for scanning",
+      "responsibilities": [
+        "walk directories",
+        "apply ignore and inclusion rules",
+        "produce ordered file lists"
+      ],
+      "modules": [
+        "discovery.py"
+      ],
+      "outputs_to": [
+        "file_cursor"
+      ]
+    },
+    "file_cursor": {
+      "role": "Stateful sequential reader over source files",
+      "responsibilities": [
+        "open files",
+        "advance line by line",
+        "maintain current path and line number",
+        "signal EOF"
+      ],
+      "modules": [
+        "file_nav.py"
+      ],
+      "inputs_from": [
+        "source_discovery"
+      ],
+      "outputs_to": [
+        "scan_engine",
+        "global_state"
+      ]
+    },
+    "scan_engine": {
+      "role": "Per-file scanning and binding execution loop",
+      "responsibilities": [
+        "iterate over lines via file cursor",
+        "detect meta lines",
+        "trigger grammar parsing",
+        "apply bindings to item state"
+      ],
+      "modules": [
+        "scan.py"
+      ],
+      "inputs_from": [
+        "file_cursor",
+        "meta_grammar"
+      ],
+      "outputs_to": [
+        "item_construction",
+        "event_narration",
+        "global_state"
+      ]
+    },
+    "meta_grammar": {
+      "role": "Structured parsing of meta-comment syntax",
+      "responsibilities": [
+        "recognize meta lines",
+        "tokenize grammar fields",
+        "classify anchors and attributes"
+      ],
+      "modules": [
+        "meta_parse.py"
+      ],
+      "outputs_to": [
+        "scan_engine"
+      ]
+    },
+    "item_construction": {
+      "role": "State machine for building normalized inventory items",
+      "responsibilities": [
+        "accumulate fields",
+        "validate required attributes",
+        "finalize items into database"
+      ],
+      "modules": [
+        "item_shape.py"
+      ],
+      "inputs_from": [
+        "scan_engine"
+      ],
+      "outputs_to": [
+        "global_state"
+      ]
+    },
+    "global_state": {
+      "role": "Shared mutable execution memory",
+      "responsibilities": [
+        "store args",
+        "store warnings and errors",
+        "store current cursor context",
+        "store in-progress item",
+        "store database inventory"
+      ],
+      "modules": [
+        "state.py"
+      ],
+      "inputs_from": [
+        "cli_invocation",
+        "file_cursor",
+        "scan_engine",
+        "item_construction",
+        "event_narration",
+        "runtime_environment"
+      ],
+      "outputs_to": [
+        "command_orchestration",
+        "io_sinks",
+        "reflection_introspection"
+      ]
+    },
+    "event_narration": {
+      "role": "Structured recording of execution events and diagnostics",
+      "responsibilities": [
+        "define event schemas",
+        "attach events to logs",
+        "classify levels and kinds"
+      ],
+      "modules": [
+        "events.py"
+      ],
+      "inputs_from": [
+        "scan_engine",
+        "command_orchestration",
+        "control_flow_policy"
+      ],
+      "outputs_to": [
+        "global_state",
+        "io_sinks"
+      ]
+    },
+    "control_flow_policy": {
+      "role": "Policy-based termination and continuation decisions",
+      "responsibilities": [
+        "define ControlledHalt exception",
+        "enforce failure thresholds",
+        "trigger early termination"
+      ],
+      "modules": [
+        "flowctl.py"
+      ],
+      "inputs_from": [
+        "event_narration",
+        "command_orchestration"
+      ],
+      "outputs_to": [
+        "command_orchestration"
+      ]
+    },
+    "index_processing": {
+      "role": "Construction of secondary data structures for lookup and tools",
+      "responsibilities": [
+        "group and organize inventory entries",
+        "emit index artifacts"
+      ],
+      "modules": [
+        "indexes.py",
+        "index_command.py"
+      ],
+      "inputs_from": [
+        "runtime_environment",
+        "global_state"
+      ],
+      "outputs_to": [
+        "io_sinks"
+      ]
+    },
+    "reflection_introspection": {
+      "role": "Expose internal system structure to tools and diagnostics",
+      "responsibilities": [
+        "inspect subsystems and inventories",
+        "support dynamic tooling and reporting - how to resolve function references from comments"
+      ],
+      "modules": [
+        "reflection.py"
+      ],
+      "inputs_from": [
+        "global_state",
+        "cli_invocation"
+      ],
+      "outputs_to": [
+        "external_tools",
+        "event_narration"
+      ]
+    },
+    "io_sinks": {
+      "role": "Formatting and emission of outputs to files or stdout",
+      "responsibilities": [
+        "serialize JSON",
+        "apply formatting policies",
+        "write to paths or stdout"
+      ],
+      "modules": [
+        "io_utils.py",
+        "output_routing.py"
+      ],
+      "inputs_from": [
+        "cli_invocation",
+        "path_resolution",
+        "event_narration",
+        "index_processing",
+        "reflection_introspection",
+        "global_state"
+      ]
+    },
+    "external_tools": {
+      "role": "Assist developer in developing Marginalia.",
+      "responsibilities": [
+        "author and edit events for the event/messaging system",
+        "apply proper structure"
+      ],
+      "modules": [
+        "<external>",
+        "reflection.py"
+      ],
+      "inputs_from": [
+        "reflection_introspection"
+      ]
+    }
+  },
+  "module_roles": {
+    "__init__.py": {
+      "subsystems": [],
+      "role": "Package initialization marker"
+    },
+    "__main__.py": {
+      "subsystems": [
+        "cli_invocation"
+      ],
+      "role": "Module execution entry point"
+    },
+    "cli.py": {
+      "subsystems": [
+        "cli_invocation"
+      ],
+      "role": "Argument parsing, dispatch, and summary trigger"
+    },
+    "db_util.py": {
+      "subsystems": [
+        "db"
+      ],
+      "role": "perform db manipulations"
+    },
+    "discovery.py": {
+      "subsystems": [
+        "source_discovery"
+      ],
+      "role": "Filesystem traversal and file selection"
+    },
+    "errors.py": {
+      "subsystems": [
+        "event_narration"
+      ],
+      "role": "Semantic error taxonomy"
+    },
+    "events.py": {
+      "subsystems": [
+        "event_narration"
+      ],
+      "role": "Event schema and logging"
+    },
+    "file_nav.py": {
+      "subsystems": [
+        "file_cursor"
+      ],
+      "role": "Line-by-line file reader with cursor state"
+    },
+    "flowctl.py": {
+      "subsystems": [
+        "control_flow_policy"
+      ],
+      "role": "Policy-based halt decisions"
+    },
+    "index_command.py": {
+      "subsystems": [
+        "command_orchestration.index",
+        "index_processing"
+      ],
+      "role": "Index workflow orchestration"
+    },
+    "indexes.py": {
+      "subsystems": [
+        "index_processing"
+      ],
+      "role": "Index data structure construction"
+    },
+    "io_utils.py": {
+      "subsystems": [
+        "io_sinks"
+      ],
+      "role": "JSON serialization and output writing"
+    },
+    "item_shape.py": {
+      "subsystems": [
+        "item_construction"
+      ],
+      "role": "Inventory item accumulator"
+    },
+    "meta_parse.py": {
+      "subsystems": [
+        "meta_grammar"
+      ],
+      "role": "Meta-comment grammar parsing"
+    },
+    "output_routing.py": {
+      "subsystems": [
+        "io_sinks"
+      ],
+      "role": "Output destination selection (possibly legacy)"
+    },
+    "paths.py": {
+      "subsystems": [
+        "path_resolution"
+      ],
+      "role": "Filesystem topology policy"
+    },
+    "reflection.py": {
+      "subsystems": [
+        "reflection_introspection"
+      ],
+      "role": "System self-inspection utilities"
+    },
+    "runtime.py": {
+      "subsystems": [
+        "runtime_environment"
+      ],
+      "role": "Runtime JSON loading and merging"
+    },
+    "scan_command.py": {
+      "subsystems": [
+        "command_orchestration.scan"
+      ],
+      "role": "Scan workflow orchestration"
+    },
+    "scan.py": {
+      "subsystems": [
+        "scan_engine"
+      ],
+      "role": "Per-file scanning loop"
+    },
+    "state.py": {
+      "subsystems": [
+        "global_state"
+      ],
+      "role": "Shared mutable execution storage"
+    }
+  }
+}

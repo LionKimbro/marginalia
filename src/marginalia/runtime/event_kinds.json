@@ -1,4 +1,44 @@
 {
+  "cannot-antiglob-a-file": {
+    "data-template": {
+      "path": "{args:path}"
+    },
+    "err": "usage",
+    "level": "error",
+    "msg-template": "--exclude glob cannot be used when path is a file ({args:path})",
+    "tags": []
+  },
+  "cannot-glob-a-file": {
+    "data-template": {
+      "path": "{args:path}"
+    },
+    "err": "usage",
+    "level": "error",
+    "msg-template": "--files glob cannot be used when path is a file ({args:path})",
+    "tags": []
+  },
+  "duplicate-note-id-detected": {
+    "data-template": {
+      "first_db_index": "{ctx:first_i}",
+      "note_id": "{ctx:note_id}",
+      "repeat_db_index": "{ctx:i}"
+    },
+    "err": "schema",
+    "level": "error",
+    "msg-template": "duplicate note ID detected\n  note: {ctx:note_id}\n  first db index: #{ctx:first_i}\n  repeated at:    #{ctx:i}",
+    "tags": []
+  },
+  "meta-parse-error-on-line": {
+    "data-template": {
+      "e": "{ctx:e}",
+      "line_num": "{g:line_num}",
+      "source_file": "{g:source_file}"
+    },
+    "err": null,
+    "level": "error",
+    "msg-template": "#meta parse error -- {g:source_file}:{g:line_num}: {ctx:e}",
+    "tags": []
+  },
   "no-command-specified": {
     "data-template": {
       "cmd": "{args:command}"
@@ -6,6 +46,24 @@
     "err": "usage",
     "level": "error",
     "msg-template": "No command specified.",
+    "tags": []
+  },
+  "orphaned-node": {
+    "data-template": {
+      "source_file": "{g:source_file}"
+    },
+    "err": null,
+    "level": "error",
+    "msg-template": "{g:source_file}: EOF: orphaned meta/doc region (note not drained)",
+    "tags": []
+  },
+  "path-does-not-exist": {
+    "data-template": {
+      "path": "{args:path}"
+    },
+    "err": "usage",
+    "level": "error",
+    "msg-template": "scan path does not exist: {args:path}",
     "tags": []
   },
   "report-version": {
@@ -32,7 +90,7 @@
     },
     "err": "usage",
     "level": "error",
-      "msg-template": "Unknown command: {args:command}",
+    "msg-template": "Unknown command: {args:command}",
     "tags": []
   }
 }

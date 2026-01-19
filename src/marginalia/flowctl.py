@@ -6,7 +6,7 @@ class ControlledHalt(Exception):
     def __init__(self, reason=None):
         self.reason = reason
 
-def maybe_halt():
+def maybe_halt(reason=None):
     if state.g["stop_requested"]:
-        raise ControlledHalt()
+        raise ControlledHalt(reason=None)
 

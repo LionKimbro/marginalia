@@ -1,6 +1,6 @@
 # marginalia/paths.py
 
-import pathlib
+from pathlib import Path
 
 from .state import g
 
@@ -9,12 +9,20 @@ from .state import g
 # Path policy query
 # ============================================================
 
+
+def _pathobj(p, flags=""):
+    if "R" in flags:  # (R)equired
+        return Path(p).expanduser().resolve(strict=True)
+    else:
+        return Path(p).expanduser().resolve(strict=False)
+
+
 def path_for(key, flags="J"):
     """
-    Return a pathing.Path for the given logical artifact key.
+    Return a pathlib.Path for the given logical artifact key.
 
     key:
-        "summary" | "inventory_out" | "index_out"
+        "summary" | "base" | "output"
 
     flags:
         "J"  -> JSON artifact (currently informational, reserved for future use)
@@ -23,48 +31,19 @@ def path_for(key, flags="J"):
     """
 
     args = g["args"]
-    cmd = g["command"]
+    cmd = args.command
 
-    # ----------------------------
-    # execution summary
-    # ----------------------------
+    if key == "base":  # (scan root)
+        return _pathobj(args.path, "R")
+
+    elif key == "output":  # (inventory or index output file)
+        return _pathobj(args.output)
+
     if key == "summary":
         if args.summary:
-            p = args.summary
+            return _pathobj(args.summary)
         else:
-            if cmd:
-                p = f"{cmd}-summary.json"
-            else:
-                p = "summary.json"
-
-    # ----------------------------
-    # scan outputs
-    # ----------------------------
-    elif key == "inventory_out":
-        if cmd != "scan":
-            raise KeyError("inventory_out requested when command is not 'scan'")
-
-        if getattr(args, "output", None):
-            p = args.output
-        else:
-            p = "inventory.json"
-
-    # ----------------------------
-    # index outputs
-    # ----------------------------
-    elif key == "index_out":
-        if cmd != "index":
-            raise KeyError("index_out requested when command is not 'index'")
-
-        if getattr(args, "output", None):
-            p = args.output
-        else:
-            p = "index.json"
-
+            return _pathobj(f"{cmd}-summary.json" if cmd else "summary.json")
+    
     else:
-        raise KeyError(f"Unknown path key: {key}")
-
-    # ----------------------------
-    # materialize path
-    # ----------------------------
-    return pathlib.Path(p)
+        raise ValueError(key)

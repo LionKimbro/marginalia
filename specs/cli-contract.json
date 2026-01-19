@@ -38,10 +38,12 @@
           "scope": {
             "--files": {
               "type": "string",
+              "repeatable": true,
               "description": "Glob pattern restricting which files are scanned."
             },
             "--exclude": {
               "type": "string",
+              "repeatable": true,
               "description": "Glob pattern for excluding files or directories."
             }
           }
